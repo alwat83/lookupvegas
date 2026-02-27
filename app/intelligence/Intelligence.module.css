@@ -53,10 +53,32 @@
     margin-bottom: 4rem;
 }
 
-.topRow {
+.topRow,
+.bottomRow,
+.fullWidthRow {
     width: 100%;
 }
 
-.bottomRow {
-    width: 100%;
+.tripleGrid {
+    display: flex;
+    gap: 2rem;
+    align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+    .tripleGrid {
+        flex-direction: column;
+    }
+}
+
+.deltaSpan {
+    flex: 2;
+    /* Takes up 2/3 of the row */
+    min-width: 0;
+}
+
+.originSpan {
+    flex: 1;
+    /* Takes up 1/3 of the row */
+    min-width: 0;
 }

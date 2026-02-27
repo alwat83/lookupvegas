@@ -1,5 +1,8 @@
 import HistoricalChart from '../../components/modules/HistoricalChart';
 import EventModeler from '../../components/modules/EventModeler';
+import DeltaReport from '../../components/modules/DeltaReport';
+import OriginTelemetry from '../../components/modules/OriginTelemetry';
+import CompressionHeatmap from '../../components/modules/CompressionHeatmap';
 import styles from './Intelligence.module.css';
 
 export const metadata = {
@@ -28,7 +31,22 @@ export default function IntelligenceDashboard() {
                     <HistoricalChart />
                 </div>
 
-                {/* Second Row: Upcoming Compressors */}
+                {/* Second Row: Forward Looking Matrix */}
+                <div className={styles.fullWidthRow}>
+                    <CompressionHeatmap />
+                </div>
+
+                {/* Third Row: Tri-split for dense telemetry */}
+                <div className={styles.tripleGrid}>
+                    <div className={styles.deltaSpan}>
+                        <DeltaReport />
+                    </div>
+                    <div className={styles.originSpan}>
+                        <OriginTelemetry />
+                    </div>
+                </div>
+
+                {/* Fourth Row: Upcoming Compressors */}
                 <div className={styles.bottomRow}>
                     <EventModeler />
                 </div>

@@ -1,0 +1,105 @@
+.moduleCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.cardHeader {
+    margin-bottom: 2rem;
+}
+
+.cardTitle {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.cardSubtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.tableContainer {
+    width: 100%;
+    overflow-x: auto;
+    flex: 1;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.table th {
+    padding: 1rem 0.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+}
+
+.table td {
+    padding: 1.25rem 0.5rem;
+    border-bottom: 1px dashed var(--border);
+    vertical-align: middle;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.alignRight {
+    text-align: right;
+}
+
+.metricLabel {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+}
+
+.monoCell {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.currentValue {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Delta Colors */
+.positive {
+    color: var(--accent-growth);
+    /* Muted Emerald */
+}
+
+.negative {
+    color: #F87171;
+    /* Muted Red */
+}
+
+.neutral {
+    color: var(--text-muted);
+}
+
+.footerNote {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-align: right;
+}

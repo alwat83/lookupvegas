@@ -1,0 +1,166 @@
+.moduleCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.cardHeader {
+    margin-bottom: 1.5rem;
+}
+
+.cardTitle {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.cardSubtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.contentContainer {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .contentContainer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+.chartSection {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    min-width: 250px;
+}
+
+/* Position text perfectly in the center of the Recharts innerRadius */
+.chartCenterArea {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    /* Let hovers pass through to the chart */
+}
+
+.centerValue {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    line-height: 1;
+}
+
+.centerLabel {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.legendSection {
+    flex: 1.5;
+    width: 100%;
+}
+
+.legendList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.legendItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px dashed var(--border);
+}
+
+.legendItem:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.itemMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.colorDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.itemName {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.itemValue {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+}
+
+/* Tooltip implementation */
+.tooltip {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.tooltipName {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.25rem;
+}
+
+.tooltipValue {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.tooltipValue span {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+.footerNote {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-align: right;
+}
