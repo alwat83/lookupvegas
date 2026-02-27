@@ -4,8 +4,7 @@ env:
     secret: OPENSKY_USERNAME
   - variable: OPENSKY_PASSWORD
     secret: OPENSKY_PASSWORD
-  - variable: NEXT_PUBLIC_AMADEUS_API_KEY
-    secret: NEXT_PUBLIC_AMADEUS_API_KEY
+
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyD3j5hjRexrArKTRlF0n7Rij-74P_cLG4A
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
