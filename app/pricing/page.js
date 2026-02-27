@@ -1,5 +1,3 @@
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import styles from './Pricing.module.css';
 
 export const metadata = {
@@ -10,8 +8,6 @@ export const metadata = {
 export default function PricingPage() {
     return (
         <main className={styles.pricingContainer}>
-            <Navbar />
-
             <div className={styles.heroSection}>
                 <div className="container">
                     <h1 className={styles.title}>Pricing & Access Tiers</h1>
@@ -115,8 +111,6 @@ export default function PricingPage() {
                     </div>
                 </div>
             </div>
-
-            <Footer />
         </main>
     );
 }

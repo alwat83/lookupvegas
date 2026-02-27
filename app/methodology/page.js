@@ -1,5 +1,3 @@
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import styles from './Methodology.module.css';
 import Link from 'next/link';
 
@@ -11,8 +9,6 @@ export const metadata = {
 export default function MethodologyPage() {
     return (
         <main className={styles.methodologyContainer}>
-            <Navbar />
-
             <div className={styles.heroSection}>
                 <div className="container">
                     <div className={styles.badgeContainer}>
@@ -119,8 +115,6 @@ export default function MethodologyPage() {
                 </div>
 
             </div>
-
-            <Footer />
         </main>
     );
 }
