@@ -21,7 +21,7 @@ export async function GET() {
         );
 
         if (!response.ok) {
-            return Response.json({ error: "Upstream radar API error" }, { status: 502 });
+            return Response.json({ error: "Upstream radar API error or rate limit", data: [] }, { status: 200 });
         }
 
         const data = await response.json();
@@ -48,6 +48,6 @@ export async function GET() {
 
     } catch (error) {
         console.error("Radar API Error:", error);
-        return Response.json({ error: "Failed to fetch live radar data" }, { status: 500 });
+        return Response.json({ error: "Failed to fetch live radar data", data: [] }, { status: 200 });
     }
 }

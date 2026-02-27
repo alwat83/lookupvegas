@@ -48,8 +48,8 @@ export default function FlightMap() {
         }
 
         fetchRadar();
-        // Poll every 15 seconds
-        const interval = setInterval(fetchRadar, 15000);
+        // Poll every 60 seconds to respect API limits
+        const interval = setInterval(fetchRadar, 60000);
         return () => clearInterval(interval);
     }, []);
 
