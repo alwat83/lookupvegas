@@ -1,0 +1,22 @@
+# App Hosting Configuration
+env:
+  - variable: OPENSKY_USERNAME
+    secret: OPENSKY_USERNAME
+  - variable: OPENSKY_PASSWORD
+    secret: OPENSKY_PASSWORD
+  - variable: NEXT_PUBLIC_AMADEUS_API_KEY
+    secret: NEXT_PUBLIC_AMADEUS_API_KEY
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyD3j5hjRexrArKTRlF0n7Rij-74P_cLG4A
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: lookupvegas-337b3.firebaseapp.com
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: lookupvegas-337b3
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: lookupvegas-337b3.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: 346092081359
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:346092081359:web:905dad3ebb7164c34627ba
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-LHTRWF0BYG
