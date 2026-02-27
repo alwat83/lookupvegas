@@ -1,140 +1,169 @@
-.main {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+.methodologyContainer {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-.hero {
-    padding: 6rem 0 4rem 0;
+.heroSection {
+    padding: 5rem 0 4rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(15, 17, 21, 0) 0%, rgba(31, 41, 55, 0.2) 100%);
     text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 4rem;
+}
+
+.badgeContainer {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
 }
 
 .title {
     font-size: 3rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-primary);
-    margin: 0 0 1rem 0;
+    margin-bottom: 1rem;
     letter-spacing: -0.02em;
 }
 
 .subtitle {
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: var(--text-secondary);
-    max-width: 600px;
+    max-width: 800px;
     margin: 0 auto;
     line-height: 1.6;
 }
 
-.section {
-    margin-bottom: 5rem;
+.contentSection {
+    flex: 1;
+    padding: 4rem 0;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
-.sectionHeading {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 2rem 0;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
+.methodologyBlock {
+    margin-bottom: 4rem;
 }
 
-.apiGrid {
-    display: grid;
-    grid-template-columns: repeat(1, 1fr);
-    gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-    .apiGrid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-.apiCard {
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 1.5rem;
-}
-
-.apiHeader {
+.blockHeader {
     display: flex;
-    flex-direction: column;
-    margin-bottom: 1rem;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
     padding-bottom: 1rem;
-    border-bottom: 1px dashed var(--border-color);
 }
 
-.apiName {
-    font-size: 1.1rem;
+.blockNumber {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--accent);
     font-weight: 600;
-    margin: 0 0 0.25rem 0;
+}
+
+.blockTitle {
+    font-size: 1.5rem;
+    font-weight: 500;
     color: var(--text-primary);
 }
 
-.apiType {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    font-family: var(--font-mono);
+.blockContent {
     color: var(--text-secondary);
-    letter-spacing: 0.05em;
+    line-height: 1.7;
+    font-size: 1.05rem;
 }
 
-.apiDesc {
-    font-size: 0.9rem;
+.blockContent p {
+    margin-bottom: 1.5rem;
+}
+
+.dataList {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem 0;
+}
+
+.dataList li {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.dataList li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
     color: var(--text-muted);
-    line-height: 1.5;
+    font-family: var(--font-mono);
 }
 
-.calcBox {
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-color);
+.dataList strong {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.formulaBox {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
     border-radius: 6px;
-    padding: 2.5rem;
-}
-
-.paragraph {
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    line-height: 1.6;
-    margin-bottom: 2rem;
-}
-
-.formula {
-    background-color: #1A1D24;
-    border: 1px solid #374151;
-    padding: 1rem;
-    border-radius: 4px;
-    text-align: center;
-    margin-bottom: 2rem;
     overflow-x: auto;
 }
 
-.formula code {
+.formulaBox code {
     font-family: var(--font-mono);
     color: var(--accent-growth);
-    font-size: 1.1rem;
+    font-size: 0.875rem;
 }
 
-.calcList {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+.sourceCard {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--border);
+    padding: 1.5rem;
+    border-radius: 6px;
+    margin-top: 1.5rem;
 }
 
-.calcList li {
-    font-size: 1rem;
+.sourceMeta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--text-muted);
-    display: flex;
-    gap: 1rem;
-    line-height: 1.5;
+    margin-bottom: 1rem;
 }
 
-.calcList strong {
-    min-width: 140px;
+.sourceMeta strong {
+    color: var(--accent);
+}
+
+.sourceCard p {
+    margin: 0;
+    font-size: 0.9375rem;
+}
+
+/* CTA */
+.ctaWrapper {
+    text-align: center;
+    margin-top: 5rem;
+    padding-top: 4rem;
+    border-top: 1px solid var(--border);
+}
+
+.terminalBtn {
+    display: inline-block;
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    padding: 0.875rem 2rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.terminalBtn:hover {
+    background: var(--text-secondary);
+    transform: translateY(-1px);
 }
