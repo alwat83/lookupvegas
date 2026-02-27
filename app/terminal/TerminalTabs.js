@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import styles from './Terminal.module.css';
+
+const FlightMap = dynamic(() => import('../../components/modules/FlightMap'), {
+    ssr: false,
+});
 
 export default function TerminalTabs() {
     const [activeTab, setActiveTab] = useState('radar'); // 'radar', 'arrivals', 'departures'
@@ -109,33 +114,38 @@ export default function TerminalTabs() {
                     <>
                         {/* RADAR TABLE */}
                         {activeTab === 'radar' && (
-                            <table className={styles.ledgerTable}>
-                                <thead>
-                                    <tr>
-                                        <th>Callsign</th>
-                                        <th>Origin Country</th>
-                                        <th>Altitude</th>
-                                        <th>Velocity</th>
-                                        <th>Heading</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredRadar.map((flight, idx) => (
-                                        <tr key={idx}>
-                                            <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{flight.callsign}</td>
-                                            <td>{flight.country}</td>
-                                            <td>{Math.round(flight.altitude || 0)}m</td>
-                                            <td>{Math.round(flight.velocity || 0)} m/s</td>
-                                            <td>{Math.round(flight.heading || 0)}°</td>
-                                            <td><span className={`${styles.statusBadge} ${styles.statusAirborne}`}>Airborne</span></td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                <div style={{ padding: '0 1.5rem', paddingTop: '1.5rem' }}>
+                                    <FlightMap />
+                                </div>
+                                <table className={styles.ledgerTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Callsign</th>
+                                            <th>Origin Country</th>
+                                            <th>Altitude</th>
+                                            <th>Velocity</th>
+                                            <th>Heading</th>
+                                            <th>Status</th>
                                         </tr>
-                                    ))}
-                                    {filteredRadar.length === 0 && (
-                                        <tr><td colSpan="6" className={styles.emptyState}>No targets matching parameters.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {filteredRadar.map((flight, idx) => (
+                                            <tr key={idx}>
+                                                <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{flight.callsign}</td>
+                                                <td>{flight.country}</td>
+                                                <td>{Math.round(flight.altitude || 0)}m</td>
+                                                <td>{Math.round(flight.velocity || 0)} m/s</td>
+                                                <td>{Math.round(flight.heading || 0)}°</td>
+                                                <td><span className={`${styles.statusBadge} ${styles.statusAirborne}`}>Airborne</span></td>
+                                            </tr>
+                                        ))}
+                                        {filteredRadar.length === 0 && (
+                                            <tr><td colSpan="6" className={styles.emptyState}>No targets matching parameters.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
 
                         {/* ARRIVALS TABLE */}

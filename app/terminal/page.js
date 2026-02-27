@@ -1,5 +1,4 @@
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
+
 import TerminalTabs from './TerminalTabs';
 import styles from './Terminal.module.css';
 
@@ -11,8 +10,6 @@ export const metadata = {
 export default function TerminalPage() {
     return (
         <main className={styles.terminalContainer}>
-            <Navbar />
-
             <div className={styles.terminalHeader}>
                 <div className="container">
                     <h1 className={styles.title}>Live Flight Telemetry</h1>
@@ -27,8 +24,6 @@ export default function TerminalPage() {
                     <TerminalTabs />
                 </div>
             </div>
-
-            <Footer />
         </main>
     );
 }
