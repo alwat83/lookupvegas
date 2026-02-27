@@ -1,0 +1,114 @@
+.heroSection {
+    padding: 4rem 0 2rem 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.05), transparent 70%);
+}
+
+.heroContent {
+    max-width: 800px;
+    margin-bottom: 3rem;
+}
+
+.headline {
+    font-size: 3rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+}
+
+.highlight {
+    color: var(--accent-growth);
+}
+
+.subtitle {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 600px;
+    margin-bottom: 2rem;
+}
+
+.ctaGroup {
+    display: flex;
+    gap: 1rem;
+}
+
+.primaryBtn {
+    background-color: var(--text-primary);
+    color: var(--bg-primary);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.primaryBtn:hover {
+    opacity: 0.9;
+}
+
+.secondaryBtn {
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.secondaryBtn:hover {
+    background-color: var(--bg-card);
+}
+
+.dataRibbon {
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ribbonItem {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ribbonItem:last-child {
+    border-right: none;
+    background-color: rgba(99, 102, 241, 0.05);
+    /* very subtle highlight for main index */
+}
+
+.ribbonLabel {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.ribbonValue {
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: baseline;
+}
+
+.text-emerald {
+    color: var(--accent-growth);
+    font-size: 0.8em;
+    margin-left: 0.25rem;
+}
+
+.ml-1 {
+    margin-left: 0.5rem;
+}

@@ -1,0 +1,207 @@
+.main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+.hero {
+    padding: 6rem 0 4rem 0;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 4rem;
+}
+
+.title {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.pricingGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    align-items: stretch;
+    margin-bottom: 4rem;
+}
+
+@media (min-width: 768px) {
+    .pricingGrid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.pricingCard {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.pricingCard:hover {
+    border-color: var(--text-secondary);
+}
+
+.premiumCard {
+    border-color: var(--accent-growth);
+    transform: scale(1.02);
+    box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.15);
+}
+
+.premiumCard:hover {
+    border-color: #34D399;
+    /* slightly brighter on hover */
+    transform: scale(1.03);
+}
+
+.premiumCard::before {
+    content: 'RECOMMENDED';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--accent-growth);
+    color: var(--bg-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.25rem 0;
+    letter-spacing: 0.05em;
+}
+
+.tierHeader {
+    padding: 3rem 2rem 2rem 2rem;
+    border-bottom: 1px dashed var(--border-color);
+    text-align: center;
+}
+
+.tierName {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+}
+
+.tierPrice {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    font-family: var(--font-mono);
+}
+
+.priceSub {
+    font-size: 1rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.tierDesc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.tierBody {
+    padding: 2rem;
+    flex-grow: 1;
+}
+
+.featureList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.featureList li {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.featureList li::before {
+    content: '✓';
+    color: var(--accent-growth);
+    font-weight: bold;
+}
+
+.featureList li.disabled {
+    color: var(--border-color);
+}
+
+.featureList li.disabled::before {
+    content: '−';
+    color: var(--border-color);
+}
+
+.tierFooter {
+    padding: 2rem;
+    text-align: center;
+    margin-top: auto;
+}
+
+.btnPrimary,
+.btnSecondary {
+    display: inline-block;
+    width: 100%;
+    padding: 1rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.btnPrimary {
+    background-color: var(--text-primary);
+    color: var(--bg-primary);
+}
+
+.btnPrimary:hover {
+    background-color: var(--text-secondary);
+}
+
+.btnSecondary {
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btnSecondary:hover {
+    border-color: var(--text-secondary);
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.disclaimer {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.disclaimer p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-family: var(--font-mono);
+}
