@@ -1,0 +1,196 @@
+.terminalContainer {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.terminalHeader {
+    padding: 3rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(15, 17, 21, 0) 0%, rgba(31, 41, 55, 0.2) 100%);
+}
+
+.title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+}
+
+.boardSection {
+    flex: 1;
+    padding: 2rem 0;
+}
+
+/* Tabs UI */
+.tabsHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(15, 17, 21, 0.5);
+}
+
+.tabList {
+    display: flex;
+    gap: 1rem;
+}
+
+.tabBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+}
+
+.tabBtn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tabBtn.active {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.searchContainer {
+    position: relative;
+}
+
+.searchInput {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    width: 200px;
+    transition: all 0.2s ease;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+    width: 250px;
+}
+
+.searchInput::placeholder {
+    color: var(--text-tertiary);
+}
+
+/* Table UI */
+.tableContainer {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.ledgerTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    text-align: left;
+}
+
+.ledgerTable th {
+    padding: 1rem 1.5rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.ledgerTable td {
+    padding: 0.875rem 1.5rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+}
+
+.ledgerTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ledgerTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Badges */
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+.statusAirborne {
+    color: var(--growth);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.statusArrived {
+    color: #60A5FA;
+    /* Blue */
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.statusDeparted {
+    color: #FBBF24;
+    /* Amber */
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.emptyState {
+    padding: 4rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+.loadingState {
+    padding: 4rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}

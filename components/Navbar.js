@@ -15,7 +15,7 @@ export default function Navbar() {
                     <Link href="/about" className={styles.navLink}>About</Link>
                     <Link href="/methodology" className={styles.navLink}>Methodology</Link>
                     <Link href="/pricing" className={styles.navLink}>Pricing</Link>
-                    <Link href="/" className={styles.navCta}>Launch Terminal</Link>
+                    <Link href="/terminal" className={styles.navCta}>Launch Terminal</Link>
                 </div>
             </div>
         </nav>
