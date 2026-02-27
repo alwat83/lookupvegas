@@ -1,207 +1,237 @@
-.main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+.pricingContainer {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-.hero {
-    padding: 6rem 0 4rem 0;
+.heroSection {
+    padding: 5rem 0 4rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(15, 17, 21, 0) 0%, rgba(31, 41, 55, 0.2) 100%);
     text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 4rem;
 }
 
 .title {
     font-size: 3rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-primary);
-    margin: 0 0 1rem 0;
+    margin-bottom: 1rem;
     letter-spacing: -0.02em;
 }
 
 .subtitle {
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: var(--text-secondary);
     max-width: 600px;
     margin: 0 auto;
     line-height: 1.6;
 }
 
-.pricingGrid {
+.tiersSection {
+    flex: 1;
+    padding: 5rem 0;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
-    align-items: stretch;
-    margin-bottom: 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: start;
 }
 
-@media (min-width: 768px) {
-    .pricingGrid {
-        grid-template-columns: repeat(3, 1fr);
+@media (max-width: 992px) {
+    .tiersSection {
+        grid-template-columns: 1fr;
+        max-width: 500px;
     }
 }
 
 .pricingCard {
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 8px;
+    padding: 2.5rem 2rem;
     display: flex;
     flex-direction: column;
+    height: 100%;
     position: relative;
-    overflow: hidden;
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .pricingCard:hover {
-    border-color: var(--text-secondary);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
-.premiumCard {
-    border-color: var(--accent-growth);
-    transform: scale(1.02);
-    box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.15);
+.highlightCard {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 1px var(--ring), 0 10px 40px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(to bottom, rgba(31, 41, 55, 0.3), var(--bg-card));
 }
 
-.premiumCard:hover {
-    border-color: #34D399;
-    /* slightly brighter on hover */
-    transform: scale(1.03);
-}
-
-.premiumCard::before {
-    content: 'RECOMMENDED';
+.popularBadge {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    background-color: var(--accent-growth);
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ring);
     color: var(--bg-primary);
+    font-family: var(--font-mono);
     font-size: 0.75rem;
-    font-weight: 700;
-    text-align: center;
-    padding: 0.25rem 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.25rem 1rem;
+    border-radius: 12px;
     letter-spacing: 0.05em;
 }
 
-.tierHeader {
-    padding: 3rem 2rem 2rem 2rem;
-    border-bottom: 1px dashed var(--border-color);
-    text-align: center;
+.cardHeader {
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
 }
 
 .tierName {
     font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 0.5rem 0;
-}
-
-.tierPrice {
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 1rem 0;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     font-family: var(--font-mono);
 }
 
-.priceSub {
-    font-size: 1rem;
+.priceContainer {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.price {
+    font-size: 3rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.period {
     color: var(--text-muted);
-    font-weight: 400;
+    font-size: 1rem;
 }
 
 .tierDesc {
-    font-size: 0.875rem;
     color: var(--text-secondary);
+    font-size: 0.9375rem;
     line-height: 1.5;
     margin: 0;
 }
 
-.tierBody {
-    padding: 2rem;
-    flex-grow: 1;
+.cardFeatures {
+    flex: 1;
+    margin-bottom: 2.5rem;
 }
 
 .featureList {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
 }
 
 .featureList li {
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    position: relative;
+    padding-left: 1.75rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    line-height: 1.5;
 }
 
 .featureList li::before {
-    content: '✓';
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
     color: var(--accent-growth);
+    font-family: var(--font-mono);
     font-weight: bold;
 }
 
-.featureList li.disabled {
-    color: var(--border-color);
-}
-
-.featureList li.disabled::before {
-    content: '−';
-    color: var(--border-color);
-}
-
-.tierFooter {
-    padding: 2rem;
-    text-align: center;
+.cardAction {
     margin-top: auto;
 }
 
-.btnPrimary,
-.btnSecondary {
-    display: inline-block;
+.actionBtn {
     width: 100%;
     padding: 1rem;
-    border-radius: 4px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
     font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     cursor: pointer;
-    border: none;
     transition: all 0.2s ease;
+    border: none;
 }
 
 .btnPrimary {
-    background-color: var(--text-primary);
+    background: var(--text-primary);
     color: var(--bg-primary);
 }
 
 .btnPrimary:hover {
-    background-color: var(--text-secondary);
+    background: var(--text-secondary);
 }
 
-.btnSecondary {
-    background-color: transparent;
+.btnOutline {
+    background: transparent;
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--text-muted);
 }
 
-.btnSecondary:hover {
+.btnOutline:hover {
     border-color: var(--text-secondary);
-    background-color: rgba(255, 255, 255, 0.02);
+    color: var(--text-primary);
 }
 
-.disclaimer {
+/* FAQ Section */
+.faqSection {
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid var(--border);
+    padding: 5rem 0;
+}
+
+.faqTitle {
     text-align: center;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border-color);
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 3rem;
 }
 
-.disclaimer p {
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    font-family: var(--font-mono);
+.faqGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+    .faqGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.faqItem h4 {
+    font-size: 1.125rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.faqItem p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 0.9375rem;
 }
