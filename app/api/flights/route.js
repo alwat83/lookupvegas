@@ -3,8 +3,10 @@ import { getOpenSkyToken } from '../../lib/opensky';
 export async function GET() {
     try {
         const now = new Date();
-        // Go back exactly 2 days to ensure the batch process has completed for that 24h period.
-        const end = Math.floor(now.setDate(now.getDate() - 2) / 1000);
+        const currentUnix = Math.floor(now.getTime() / 1000);
+
+        // Go back exactly 2 days, rounded to the nearest hour (3600s) to allow fetch caching
+        const end = (currentUnix - (currentUnix % 3600)) - (48 * 60 * 60);
         const begin = end - (24 * 60 * 60); // 24 hours prior
 
         const token = await getOpenSkyToken();

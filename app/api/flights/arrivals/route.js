@@ -3,8 +3,9 @@ import { getOpenSkyToken } from '../../../lib/opensky';
 export async function GET() {
     try {
         const now = new Date();
-        const end = Math.floor(now.getTime() / 1000);
-        // Look back 6 hours for a live arrivals board
+        const currentUnix = Math.floor(now.getTime() / 1000);
+        // Round to nearest 5 minutes (300s) to allow Next.js fetch caching to work correctly
+        const end = currentUnix - (currentUnix % 300);
         const begin = end - (6 * 60 * 60);
 
         const token = await getOpenSkyToken();
