@@ -40,3 +40,8 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 - Always use `npx` for executing commands on this system.
 - Standard Next.js commands: `npx next dev`, `npx next build`, `npx next start`
 - Tech Stack includes Next.js, Firebase, Stripe, and Leaflet.
+
+**Monitoring & Logging:**
+- View live server and CDN logs directly in the **Firebase Console**.
+- Navigate to **App Hosting -> [Backend Name] -> Logs** tab to query specific 500 or 400 errors.
+- Do not attempt to use `npx firebase apphosting:backends:logs` as it is an unsupported command. Use the GUI console instead.
