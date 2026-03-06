@@ -24,10 +24,14 @@ const Marker = dynamic(
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
     ssr: false,
 });
+const Tooltip = dynamic(() => import("react-leaflet").then((mod) => mod.Tooltip), {
+    ssr: false,
+});
 
 export default function FlightMap() {
     const [flights, setFlights] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showLabels, setShowLabels] = useState(false);
 
     // KLAS Airport approximate coordinates
     const klasPosition = [36.084, -115.153];
@@ -78,9 +82,9 @@ export default function FlightMap() {
                 <MapContainer
                     center={klasPosition}
                     zoom={10}
-                    scrollWheelZoom={false}
+                    scrollWheelZoom={true}
                     style={{ height: "100%", width: "100%", backgroundColor: "#0F1115" }}
-                    zoomControl={false}
+                    zoomControl={true}
                 >
                     {/* Use CARTO Dark Matter for the "Terminal" aesthetic */}
                     <TileLayer
@@ -102,6 +106,11 @@ export default function FlightMap() {
                                     <div>HDG: {Math.round(flight.heading)}°</div>
                                 </div>
                             </Popup>
+                            {showLabels && (
+                                <Tooltip direction="right" offset={[10, 0]} opacity={1} permanent className="aircraft-tooltip" >
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 600 }}>{flight.callsign}</span>
+                                </Tooltip>
+                            )}
                         </Marker>
                     ))}
                 </MapContainer>
@@ -109,6 +118,27 @@ export default function FlightMap() {
 
             <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 999, backgroundColor: 'rgba(26, 29, 36, 0.8)', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', backdropFilter: 'blur(4px)' }}>
                 <span style={{ color: 'var(--accent-growth)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>● LIVE TARGETS: {flights.length}</span>
+            </div>
+
+            <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 999 }}>
+                <button
+                    onClick={() => setShowLabels(!showLabels)}
+                    style={{
+                        backgroundColor: showLabels ? 'var(--accent-growth)' : 'rgba(26, 29, 36, 0.9)',
+                        color: showLabels ? 'var(--bg-primary)' : 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(4px)',
+                        transition: 'all 0.2s ease',
+                        fontWeight: 600
+                    }}
+                >
+                    {showLabels ? 'HIDE LABELS' : 'SHOW LABELS'}
+                </button>
             </div>
         </div>
     );
