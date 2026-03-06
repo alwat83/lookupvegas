@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const token = await getOpenSkyToken();
-        const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+        const authHeader = await getOpenSkyToken();
+        const headers = authHeader ? { "Authorization": authHeader } : {};
 
         // Las Vegas Bounding Box
         // lamin, lomin, lamax, lomax

@@ -10,8 +10,8 @@ export async function GET() {
         const end = currentUnix - (currentUnix % 300);
         const begin = end - (6 * 60 * 60);
 
-        const token = await getOpenSkyToken();
-        const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+        const authHeader = await getOpenSkyToken();
+        const headers = authHeader ? { "Authorization": authHeader } : {};
 
         const openSkyUrl = `https://opensky-network.org/api/flights/arrival?airport=KLAS&begin=${begin}&end=${end}`;
         const proxyUrl = `https://opensky-proxy.lookupvegas.workers.dev/?url=${encodeURIComponent(openSkyUrl)}`;
