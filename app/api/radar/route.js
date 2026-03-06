@@ -27,7 +27,8 @@ export async function GET() {
         );
 
         if (!response.ok) {
-            return Response.json({ error: "Upstream radar API error or rate limit", data: [] }, { status: 200 });
+            const bodyTxt = await response.text();
+            return Response.json({ error: `Upstream HTTP ${response.status}: ${bodyTxt}`, data: [] }, { status: 200 });
         }
 
         const data = await response.json();
