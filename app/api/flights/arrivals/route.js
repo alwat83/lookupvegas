@@ -23,9 +23,10 @@ export async function GET() {
         }
 
         const data = await response.json();
+        const flightList = Array.isArray(data) ? data : [];
 
         // Format for the Terminal UI
-        const flights = (data || []).map(f => ({
+        const flights = flightList.map(f => ({
             icao24: f.icao24,
             callsign: f.callsign ? f.callsign.trim() : 'UNKNOWN',
             origin: f.estDepartureAirport || 'UNKNOWN',

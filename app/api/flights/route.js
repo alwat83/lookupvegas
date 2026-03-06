@@ -29,11 +29,12 @@ export async function GET() {
         }
 
         const data = await response.json();
+        const flightList = Array.isArray(data) ? data : [];
 
         // Parse data to extract meaningful metrics
-        const totalArrivals = data.length || 0;
+        const totalArrivals = flightList.length || 0;
 
-        const domestic = data.filter(f => f.estDepartureAirport && f.estDepartureAirport.startsWith('K')).length;
+        const domestic = flightList.filter(f => f.estDepartureAirport && f.estDepartureAirport.startsWith('K')).length;
         const international = totalArrivals - domestic;
 
         return Response.json({
@@ -42,7 +43,7 @@ export async function GET() {
                 domestic,
                 international,
                 rawCount: totalArrivals,
-                flights: data.slice(0, 100).map(f => ({
+                flights: flightList.slice(0, 100).map(f => ({
                     callsign: f.callsign?.trim() || 'UNKNOWN',
                     origin: f.estDepartureAirport || 'N/A',
                     firstSeen: f.firstSeen,
