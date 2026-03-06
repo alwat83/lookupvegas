@@ -2,8 +2,8 @@ let cachedToken = null;
 let tokenExpiration = 0;
 
 export async function getOpenSkyToken() {
-    const clientId = process.env.OPENSKY_CLIENT_ID;
-    const clientSecret = process.env.OPENSKY_CLIENT_SECRET;
+    const clientId = process.env.OPENSKY_CLIENT_ID || process.env.OPENSKY_USERNAME;
+    const clientSecret = process.env.OPENSKY_CLIENT_SECRET || process.env.OPENSKY_PASSWORD;
 
     if (!clientId || !clientSecret) {
         return null; // Fallback to unauthenticated if no creds are present
