@@ -84,13 +84,13 @@ export default function TerminalTabs() {
                         className={`${styles.tabBtn} ${activeTab === 'arrivals' ? styles.active : ''}`}
                         onClick={() => setActiveTab('arrivals')}
                     >
-                        Arrivals (Last 6H)
+                        Live Inbound
                     </button>
                     <button
                         className={`${styles.tabBtn} ${activeTab === 'departures' ? styles.active : ''}`}
                         onClick={() => setActiveTab('departures')}
                     >
-                        Departures (Last 6H)
+                        Live Outbound
                     </button>
                 </div>
 
@@ -169,11 +169,11 @@ export default function TerminalTabs() {
                                             <td style={{ color: 'var(--text-secondary)' }}>{flight.destination}</td>
                                             <td>{formatTime(flight.firstSeen)}</td>
                                             <td>{formatTime(flight.lastSeen)}</td>
-                                            <td><span className={`${styles.statusBadge} ${styles.statusArrived}`}>Arrived</span></td>
+                                            <td><span className={`${styles.statusBadge} ${styles.statusArrived}`}>Inbound</span></td>
                                         </tr>
                                     ))}
                                     {filteredArrivals.length === 0 && (
-                                        <tr><td colSpan="6" className={styles.emptyState}>No arrivals matching parameters.</td></tr>
+                                        <tr><td colSpan="6" className={styles.emptyState}>No inbound targets matching parameters.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -200,11 +200,11 @@ export default function TerminalTabs() {
                                             <td>{flight.destination}</td>
                                             <td>{formatTime(flight.firstSeen)}</td>
                                             <td>{formatTime(flight.lastSeen)}</td>
-                                            <td><span className={`${styles.statusBadge} ${styles.statusDeparted}`}>Departed</span></td>
+                                            <td><span className={`${styles.statusBadge} ${styles.statusDeparted}`}>Departing</span></td>
                                         </tr>
                                     ))}
                                     {filteredDepartures.length === 0 && (
-                                        <tr><td colSpan="6" className={styles.emptyState}>No departures matching parameters.</td></tr>
+                                        <tr><td colSpan="6" className={styles.emptyState}>No outbound targets matching parameters.</td></tr>
                                     )}
                                 </tbody>
                             </table>

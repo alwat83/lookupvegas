@@ -4,45 +4,34 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const now = new Date();
-        const currentUnix = Math.floor(now.getTime() / 1000);
-        // Round to nearest 5 minutes (300s) to allow Next.js fetch caching to work correctly
-        const end = currentUnix - (currentUnix % 300);
-        const begin = end - (6 * 60 * 60);
-
-        const authHeader = await getOpenSkyToken();
-        const headers = authHeader ? { "Authorization": authHeader } : {};
-
-        const openSkyUrl = `https://opensky-network.org/api/flights/arrival?airport=KLAS&begin=${begin}&end=${end}`;
-        const proxyUrl = `https://opensky-proxy.lookupvegas.workers.dev/?url=${encodeURIComponent(openSkyUrl)}`;
-
+        // Fetch 50 miles around Las Vegas (KLAS)
         const response = await fetch(
-            proxyUrl,
+            `https://api.adsb.lol/v2/lat/36.0840/lon/-115.1537/dist/50`,
             {
-                headers,
-                next: { revalidate: 300 }, // Cache for 5 minutes
+                next: { revalidate: 30 }, // Cache for 30s
             }
         );
 
         if (!response.ok) {
-            return Response.json({ error: "OpenSky rate limit or unavailability", data: [] }, { status: 200 });
+            return Response.json({ error: "ADSB rate limit or unavailability", data: [] }, { status: 200 });
         }
 
         const data = await response.json();
-        const flightList = Array.isArray(data) ? data : [];
 
-        // Format for the Terminal UI
-        const flights = flightList.map(f => ({
-            icao24: f.icao24,
-            callsign: f.callsign ? f.callsign.trim() : 'UNKNOWN',
-            origin: f.estDepartureAirport || 'UNKNOWN',
-            destination: f.estArrivalAirport || 'KLAS',
-            firstSeen: f.firstSeen,
-            lastSeen: f.lastSeen,
-            status: 'Arrived'
-        })).sort((a, b) => b.lastSeen - a.lastSeen); // Most recent first
+        // Find planes that are descending (Inbound/Arrivals)
+        const inboundFlights = (data.ac || []).filter(state =>
+            state.flight && state.alt_baro < 20000 && state.baro_rate < -200
+        ).map(state => ({
+            icao24: state.hex,
+            callsign: state.flight.trim(),
+            origin: 'UNKNOWN', // Live telemetry lacks origins natively
+            destination: 'KLAS',
+            firstSeen: Math.floor(Date.now() / 1000) - 1800, // mock duration for UI
+            lastSeen: Math.floor(Date.now() / 1000),
+            status: 'Inbound'
+        })).sort((a, b) => b.lastSeen - a.lastSeen); // Match legacy UI sort
 
-        return Response.json({ data: flights });
+        return Response.json({ data: inboundFlights });
 
     } catch (error) {
         console.error("Arrivals API Error:", error);

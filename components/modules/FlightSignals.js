@@ -56,9 +56,9 @@ export default function FlightSignals() {
                 ) : (
                     <div className={styles.metricsGrid}>
                         <div className={styles.metricItem}>
-                            <span className="text-muted text-xs">Total Daily Arrivals</span>
+                            <span className="text-muted text-xs">Total Live Inbound</span>
                             <div className="text-3xl font-mono font-semibold">{data.totalArrivals}</div>
-                            <div className="text-xs text-secondary mt-1">Previous 24h</div>
+                            <div className="text-xs text-secondary mt-1">Tracking Active</div>
                         </div>
 
                         <div className={styles.metricSplit}>

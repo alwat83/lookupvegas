@@ -4,25 +4,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const authHeader = await getOpenSkyToken();
-        const headers = authHeader ? { "Authorization": authHeader } : {};
-
-        // Las Vegas Bounding Box
-        // lamin, lomin, lamax, lomax
-        const lamin = 35.8;
-        const lomin = -115.5;
-        const lamax = 36.5;
-        const lomax = -114.8;
-
-        // Proxy all requests through Cloudflare Worker to avoid Firebase GCP IP Ban
-        const openSkyUrl = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
-        const proxyUrl = `https://opensky-proxy.lookupvegas.workers.dev/?url=${encodeURIComponent(openSkyUrl)}`;
-
+        // Fetch 50 miles around Las Vegas (KLAS)
         const response = await fetch(
-            proxyUrl,
+            `https://api.adsb.lol/v2/lat/36.0840/lon/-115.1537/dist/50`,
             {
-                headers,
-                next: { revalidate: 15 }, // Cache for 15 seconds to simulate live radar while respecting limits
+                next: { revalidate: 10 }, // 10s cache
             }
         );
 
@@ -33,21 +19,17 @@ export async function GET() {
 
         const data = await response.json();
 
-        // Parse the state vectors
-        // Array format from OpenSky:
-        // [0] icao24, [1] callsign, [2] origin_country, [3] time_position, [4] last_contact,
-        // [5] longitude, [6] latitude, [7] baro_altitude, [8] on_ground, [9] velocity, [10] true_track
-
-        const activeFlights = (data.states || []).map(state => ({
-            icao: state[0],
-            callsign: state[1] ? state[1].trim() : 'UNKNOWN',
-            country: state[2],
-            longitude: state[5],
-            latitude: state[6],
-            altitude: state[7], // meters
-            velocity: state[9], // m/s
-            heading: state[10] // degrees
-        })).filter(f => f.longitude && f.latitude && !f.on_ground);
+        // ADSB.lol returns { ac: [...] }
+        const activeFlights = (data.ac || []).map(state => ({
+            icao: state.hex,
+            callsign: state.flight ? state.flight.trim() : 'UNKNOWN',
+            country: 'Tracking', // ADSB.lol omits country DB by default
+            longitude: state.lon,
+            latitude: state.lat,
+            altitude: state.alt_baro ? state.alt_baro * 0.3048 : 0, // convert feet to meters for legacy UI
+            velocity: state.gs ? state.gs * 0.514444 : 0, // convert kts to m/s
+            heading: state.track || state.dir || 0
+        })).filter(f => f.longitude && f.latitude);
 
         return Response.json({
             data: activeFlights
