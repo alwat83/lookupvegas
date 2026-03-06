@@ -1,5 +1,7 @@
 import { getOpenSkyToken } from '../../lib/opensky';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const token = await getOpenSkyToken();
@@ -12,8 +14,12 @@ export async function GET() {
         const lamax = 36.5;
         const lomax = -114.8;
 
+        // Proxy all requests through Cloudflare Worker to avoid Firebase GCP IP Ban
+        const openSkyUrl = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
+        const proxyUrl = `https://opensky-proxy.lookupvegas.workers.dev/?url=${encodeURIComponent(openSkyUrl)}`;
+
         const response = await fetch(
-            `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`,
+            proxyUrl,
             {
                 headers,
                 next: { revalidate: 15 }, // Cache for 15 seconds to simulate live radar while respecting limits

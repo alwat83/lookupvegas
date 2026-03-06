@@ -1,5 +1,7 @@
 import { getOpenSkyToken } from '../../../lib/opensky';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const now = new Date();
@@ -11,8 +13,11 @@ export async function GET() {
         const token = await getOpenSkyToken();
         const headers = token ? { "Authorization": `Bearer ${token}` } : {};
 
+        const openSkyUrl = `https://opensky-network.org/api/flights/arrival?airport=KLAS&begin=${begin}&end=${end}`;
+        const proxyUrl = `https://opensky-proxy.lookupvegas.workers.dev/?url=${encodeURIComponent(openSkyUrl)}`;
+
         const response = await fetch(
-            `https://opensky-network.org/api/flights/arrival?airport=KLAS&begin=${begin}&end=${end}`,
+            proxyUrl,
             {
                 headers,
                 next: { revalidate: 300 }, // Cache for 5 minutes
