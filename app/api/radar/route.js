@@ -54,6 +54,6 @@ export async function GET() {
 
     } catch (error) {
         console.error("Radar API Error:", error);
-        return Response.json({ error: "Failed to fetch live radar data", data: [] }, { status: 200 });
+        return Response.json({ error: String(error) + " | " + String(error.cause || ""), stack: error.stack, data: [] }, { status: 200 });
     }
 }
