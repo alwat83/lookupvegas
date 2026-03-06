@@ -7,6 +7,7 @@ export default function FlightSignals() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const [showFlights, setShowFlights] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -32,9 +33,19 @@ export default function FlightSignals() {
 
     return (
         <div className={`card animate-fade-in ${styles.flightCard}`}>
-            <div className="card-header">
-                <h3 className="card-title">Transit & Ingress Signals</h3>
-                <span className="badge badge-growth">Live API</span>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 className="card-title">Transit & Ingress Signals</h3>
+                    <span className="badge badge-growth">Live API</span>
+                </div>
+                {data && data.flights && (
+                    <button
+                        className={`${styles.toggleButton} ${showFlights ? styles.active : ''}`}
+                        onClick={() => setShowFlights(!showFlights)}
+                    >
+                        {showFlights ? 'Hide Flights' : 'Show Flights'}
+                    </button>
+                )}
             </div>
 
             <div className={styles.content}>
@@ -60,6 +71,29 @@ export default function FlightSignals() {
                                 <div className="text-lg font-mono">{data.international}</div>
                             </div>
                         </div>
+
+                        {showFlights && data.flights && (
+                            <div className={styles.flightsContainer}>
+                                <table className={styles.flightsTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Callsign</th>
+                                            <th>Origin</th>
+                                            <th>Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.flights.map((flight, i) => (
+                                            <tr key={i}>
+                                                <td className={styles.flightCallsign}>{flight.callsign}</td>
+                                                <td>{flight.origin}</td>
+                                                <td>{new Date(flight.lastSeen * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

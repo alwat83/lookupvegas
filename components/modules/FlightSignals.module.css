@@ -37,3 +37,64 @@
 .mt-1 {
     margin-top: 0.25rem;
 }
+
+.toggleButton {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-mono);
+}
+
+.toggleButton:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.toggleButton.active {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--text-primary);
+}
+
+.flightsContainer {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.flightsTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+}
+
+.flightsTable th {
+    text-align: left;
+    color: var(--text-muted);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: normal;
+}
+
+.flightsTable td {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.flightsTable tr:last-child td {
+    border-bottom: none;
+}
+
+.flightCallsign {
+    color: var(--text-primary);
+    font-weight: 500;
+}

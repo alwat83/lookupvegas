@@ -42,6 +42,12 @@ export async function GET() {
                 domestic,
                 international,
                 rawCount: totalArrivals,
+                flights: data.slice(0, 100).map(f => ({
+                    callsign: f.callsign?.trim() || 'UNKNOWN',
+                    origin: f.estDepartureAirport || 'N/A',
+                    firstSeen: f.firstSeen,
+                    lastSeen: f.lastSeen
+                })),
                 timeframe: { begin, end }
             }
         });
