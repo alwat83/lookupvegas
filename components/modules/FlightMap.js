@@ -101,8 +101,8 @@ export default function FlightMap() {
                             <Popup className="premium-popup">
                                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--bg-primary)" }}>
                                     <div><strong>{flight.callsign}</strong></div>
-                                    <div>ALT: {Math.round(flight.altitude * 3.28084).toLocaleString()} ft</div>
-                                    <div>SPD: {Math.round(flight.velocity * 1.94384)} kts</div>
+                                    <div>ALT: {Math.round(flight.altitude).toLocaleString()} ft</div>
+                                    <div>SPD: {Math.round(flight.velocity)} kts</div>
                                     <div>HDG: {Math.round(flight.heading)}°</div>
                                 </div>
                             </Popup>

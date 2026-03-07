@@ -1,46 +1,49 @@
+"use client";
+import { useState, useEffect } from 'react';
 import styles from './EventModeler.module.css';
 
-// Mock event data representing the Ticketmaster/Convention API integration
-const upcomingEvents = [
-    {
-        id: 1,
-        name: "Formula 1 Las Vegas Grand Prix",
-        date: "Nov 21-23",
-        tier: "Tier 1: Maximum Impact",
-        multiplier: 2.8,
-        description: "City-wide road closures. Peak international ingress.",
-        status: "critical"
-    },
-    {
-        id: 2,
-        name: "CES (Consumer Electronics Show)",
-        date: "Jan 9-12",
-        tier: "Tier 1: High Impact",
-        multiplier: 2.2,
-        description: "Convention center saturation. Mid-week corporate ingress.",
-        status: "high"
-    },
-    {
-        id: 3,
-        name: "EDC (Electric Daisy Carnival)",
-        date: "May 17-19",
-        tier: "Tier 2: Moderate Impact",
-        multiplier: 1.6,
-        description: "Young demographic influx. Speedway localized compression.",
-        status: "moderate"
-    },
-    {
-        id: 4,
-        name: "WSOP Main Event",
-        date: "Jul 3-17",
-        tier: "Tier 3: Low/Sustained Impact",
-        multiplier: 1.1,
-        description: "Sustained, low-velocity compression concentrated mid-Strip.",
-        status: "low"
-    }
-];
-
 export default function EventModeler() {
+    const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchEvents() {
+            try {
+                const res = await fetch('/api/events');
+                const { data } = await res.json();
+
+                if (data && data.length > 0) {
+                    const mappedEvents = data.map(evt => {
+                        // Translate impactScore back into our UI's multiplier notation
+                        let multiplier = 1.0;
+                        let statusClass = "low";
+
+                        if (evt.impactScore >= 95) { multiplier = 2.8; statusClass = "critical"; }
+                        else if (evt.impactScore >= 75) { multiplier = 2.0; statusClass = "high"; }
+                        else if (evt.impactScore >= 50) { multiplier = 1.5; statusClass = "moderate"; }
+                        else { multiplier = 1.1; statusClass = "low"; }
+
+                        return {
+                            id: evt.id,
+                            name: evt.name,
+                            date: evt.date, // YYYY-MM-DD
+                            tier: evt.impact,
+                            multiplier: multiplier,
+                            description: `Venue: ${evt.venue}`,
+                            status: statusClass
+                        };
+                    });
+
+                    setUpcomingEvents(mappedEvents);
+                }
+            } catch (error) {
+                console.error("Event API error:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchEvents();
+    }, []);
     return (
         <div className={styles.moduleCard}>
             <div className={styles.cardHeader}>
@@ -59,23 +62,37 @@ export default function EventModeler() {
                         </tr>
                     </thead>
                     <tbody>
-                        {upcomingEvents.map((event) => (
-                            <tr key={event.id}>
-                                <td className={styles.monoCell}>{event.date}</td>
-                                <td>
-                                    <div className={styles.eventName}>{event.name}</div>
-                                    <div className={styles.eventDesc}>{event.description}</div>
-                                </td>
-                                <td>
-                                    <span className={`${styles.tierBadge} ${styles[event.status]}`}>
-                                        {event.tier}
-                                    </span>
-                                </td>
-                                <td className={`${styles.monoCell} ${styles.alignRight}`}>
-                                    {event.multiplier.toFixed(1)}x
+                        {loading ? (
+                            <tr>
+                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                    Syncing with Discovery APIs...
                                 </td>
                             </tr>
-                        ))}
+                        ) : upcomingEvents.length === 0 ? (
+                            <tr>
+                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                    No major pulse events detected in tracking window.
+                                </td>
+                            </tr>
+                        ) : (
+                            upcomingEvents.map((event) => (
+                                <tr key={event.id}>
+                                    <td className={styles.monoCell}>{event.date}</td>
+                                    <td>
+                                        <div className={styles.eventName}>{event.name}</div>
+                                        <div className={styles.eventDesc}>{event.description}</div>
+                                    </td>
+                                    <td>
+                                        <span className={`${styles.tierBadge} ${styles[event.status]}`}>
+                                            {event.tier}
+                                        </span>
+                                    </td>
+                                    <td className={`${styles.monoCell} ${styles.alignRight}`}>
+                                        {event.multiplier.toFixed(1)}x
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>

@@ -13,35 +13,7 @@ import {
 } from 'recharts';
 import styles from './HistoricalChart.module.css';
 
-// Generate mock historical data for the POC
-const generateMockData = () => {
-    const data = [];
-    let baseVolume = 30000;
-    let baseCompression = 50;
-
-    // Simulate last 30 days
-    for (let i = 30; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-
-        // Add some noise and weekly cycle (weekends peak)
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        const volumeSpike = isWeekend ? 15000 : 0;
-        const compSpike = isWeekend ? 30 : 0;
-
-        const noiseV = Math.floor(Math.random() * 5000) - 2500;
-        const noiseC = Math.floor(Math.random() * 10) - 5;
-
-        data.push({
-            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            fullDate: date.toISOString(), // useful for export
-            volume: baseVolume + volumeSpike + noiseV,
-            compression: Math.min(100, Math.max(0, baseCompression + compSpike + noiseC)),
-            cvi: Math.min(100, Math.max(0, (baseCompression + compSpike + noiseC) * 0.8 + 20))
-        });
-    }
-    return data;
-};
+// Remove local mock generator, we will fetch from API
 
 // Custom tooltip for styling
 const CustomTooltip = ({ active, payload, label }) => {
@@ -69,10 +41,38 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function HistoricalChart() {
     const [data, setData] = useState([]);
     const [isMounted, setIsMounted] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setIsMounted(true);
-        setData(generateMockData());
+        const fetchData = async () => {
+            try {
+                const res = await fetch('/api/historical');
+                if (!res.ok) throw new Error("API error");
+                const json = await res.json();
+
+                // Map the /api/historical "velocity" base into the detailed metrics the chart expects
+                // In a production scenario, the DB would return these exact columns.
+                const mappedData = (json.data || []).map(row => {
+                    const baseV = row.velocity; // 1-100 scale
+
+                    return {
+                        date: row.date,
+                        fullDate: new Date(row.date + ' 2026').toISOString(),
+                        volume: Math.floor(baseV * 500) + 15000, // project 1-100 to 15k-65k scale
+                        compression: baseV,
+                        cvi: Math.min(100, baseV * 0.9 + 10)
+                    };
+                });
+                setData(mappedData);
+            } catch (error) {
+                console.error("HistoricalChart fetch error:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, []);
 
     const exportToCSV = () => {

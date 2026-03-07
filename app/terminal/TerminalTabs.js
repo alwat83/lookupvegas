@@ -134,8 +134,8 @@ export default function TerminalTabs() {
                                             <tr key={idx}>
                                                 <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{flight.callsign}</td>
                                                 <td>{flight.country}</td>
-                                                <td>{Math.round(flight.altitude || 0)}m</td>
-                                                <td>{Math.round(flight.velocity || 0)} m/s</td>
+                                                <td>{Math.round(flight.altitude || 0).toLocaleString()} ft</td>
+                                                <td>{Math.round(flight.velocity || 0)} kts</td>
                                                 <td>{Math.round(flight.heading || 0)}°</td>
                                                 <td><span className={`${styles.statusBadge} ${styles.statusAirborne}`}>Airborne</span></td>
                                             </tr>

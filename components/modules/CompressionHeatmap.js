@@ -3,41 +3,6 @@
 import { useState, useEffect } from 'react';
 import styles from './CompressionHeatmap.module.css';
 
-// Generate 90 days of forward-looking mock data
-const generateHeatmapData = () => {
-    const data = [];
-    const today = new Date();
-
-    // Create 13 weeks of data (~90 days)
-    for (let w = 0; w < 13; w++) {
-        const week = [];
-        for (let d = 0; d < 7; d++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + (w * 7) + d);
-
-            const isWeekend = d === 5 || d === 6; // Fri/Sat
-            let baseScore = isWeekend ? 60 : 30; // Weekends naturally higher
-
-            // Inject fake events/spikes (F1, Superbowl, CES)
-            if (w === 3 && isWeekend) baseScore = 95; // Major event spike
-            if (w === 7 && (d >= 2 && d <= 5)) baseScore = 88; // Mid-week convention
-            if (w === 11 && isWeekend) baseScore = 15; // Dead week
-
-            // Add noise
-            const noise = Math.floor(Math.random() * 20) - 10;
-            const finalScore = Math.min(100, Math.max(0, baseScore + noise));
-
-            week.push({
-                date: date.toISOString().split('T')[0],
-                score: finalScore,
-                dayName: date.toLocaleDateString('en-US', { weekday: 'short' })
-            });
-        }
-        data.push(week);
-    }
-    return data;
-};
-
 // Helper to determine CSS class based on score
 const getIntensityClass = (score) => {
     if (score >= 85) return styles.intensity4; // Peak Saturation (Red/Indigo)
@@ -50,9 +15,66 @@ const getIntensityClass = (score) => {
 export default function CompressionHeatmap() {
     const [weeks, setWeeks] = useState([]);
     const [hoveredCell, setHoveredCell] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setWeeks(generateHeatmapData());
+        async function buildHeatmap() {
+            try {
+                // Fetch real event data to power the predictive heatmap
+                const res = await fetch('/api/events');
+                const { data: events } = await res.json();
+
+                // Map events by date (YYYY-MM-DD) for fast lookup
+                const eventMap = {};
+                (events || []).forEach(evt => {
+                    if (evt.date) {
+                        eventMap[evt.date] = evt;
+                    }
+                });
+
+                const data = [];
+                const today = new Date();
+
+                // Create 13 weeks of data (~90 days)
+                for (let w = 0; w < 13; w++) {
+                    const week = [];
+                    for (let d = 0; d < 7; d++) {
+                        const date = new Date(today);
+                        date.setDate(today.getDate() + (w * 7) + d);
+                        const dateString = date.toISOString().split('T')[0];
+
+                        const isWeekend = d === 5 || d === 6; // Fri/Sat
+                        let baseScore = isWeekend ? 60 : 30; // Weekends naturally higher
+                        let eventName = null;
+
+                        // Check if a live event is scheduled on this day
+                        if (eventMap[dateString]) {
+                            const evt = eventMap[dateString];
+                            baseScore = Math.max(baseScore, evt.impactScore);
+                            eventName = evt.name;
+                        }
+
+                        // Add slight noise for organic feel
+                        const noise = Math.floor(Math.random() * 20) - 10;
+                        const finalScore = Math.min(100, Math.max(0, baseScore + noise));
+
+                        week.push({
+                            date: dateString,
+                            score: finalScore,
+                            dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                            event: eventName
+                        });
+                    }
+                    data.push(week);
+                }
+                setWeeks(data);
+            } catch (err) {
+                console.error("Heatmap fetch error:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        buildHeatmap();
     }, []);
 
     return (
@@ -97,6 +119,7 @@ export default function CompressionHeatmap() {
                                         <div className={styles.tooltip}>
                                             <div className={styles.ttDate}>{day.date}</div>
                                             <div className={styles.ttScore}>Score: <span>{day.score}</span></div>
+                                            {day.event && <div style={{ fontSize: '0.75rem', marginTop: '4px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{day.event}</div>}
                                         </div>
                                     )}
                                 </div>

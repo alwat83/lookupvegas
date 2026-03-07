@@ -26,8 +26,8 @@ export async function GET() {
             country: 'Tracking', // ADSB.lol omits country DB by default
             longitude: state.lon,
             latitude: state.lat,
-            altitude: state.alt_baro ? state.alt_baro * 0.3048 : 0, // convert feet to meters for legacy UI
-            velocity: state.gs ? state.gs * 0.514444 : 0, // convert kts to m/s
+            altitude: state.alt_baro ? state.alt_baro : 0, // native feet from ADSB.lol
+            velocity: state.gs ? state.gs : 0, // native kts from ADSB.lol
             heading: state.track || state.dir || 0
         })).filter(f => f.longitude && f.latitude);
 
