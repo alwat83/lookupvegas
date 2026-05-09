@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
 
-// Fix Leaflet's default icon path issues with Next.js
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
+import L from "leaflet";
 
 // Dynamically import the map components so they don't break SSR
 const MapContainer = dynamic(
@@ -57,11 +57,10 @@ export default function FlightMap() {
         return () => clearInterval(interval);
     }, []);
 
-    // Custom Icon structure loading natively using L inline to avoid ssr window ref errors
+    // Custom Icon structure loading natively
     // A simple plain dot or triangle is best for the Bloomerg terminal look
     let aircraftIcon = null;
     if (typeof window !== "undefined") {
-        const L = require("leaflet");
         aircraftIcon = new L.DivIcon({
             className: "radar-blip",
             html: `<div style="width: 12px; height: 12px; background-color: var(--accent-growth); border-radius: 50%; border: 2px solid var(--bg-primary); box-shadow: 0 0 8px var(--accent-growth);"></div>`,
