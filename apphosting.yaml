@@ -1,4 +1,9 @@
 # App Hosting Configuration
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  concurrency: 80
+
 env:
   - variable: OPENSKY_USERNAME
     secret: OPENSKY_USERNAME
