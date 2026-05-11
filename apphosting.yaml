@@ -1,7 +1,7 @@
 # App Hosting Configuration
 runConfig:
   cpu: 1
-  memoryMiB: 1024
+  memoryMiB: 2048
   concurrency: 80
 
 env:
