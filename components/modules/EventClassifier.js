@@ -55,7 +55,11 @@ export default function EventClassifier() {
                         <div className={styles.eventInfo}>
                             <h4 className={styles.eventName}>{evt.name}</h4>
                             <div className={styles.eventMeta}>
-                                <span>{new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                <span>
+                                    {isNaN(new Date(evt.date)) 
+                                        ? evt.date 
+                                        : new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
                                 <span className={styles.separator}>•</span>
                                 <span>{evt.venue}</span>
                             </div>
