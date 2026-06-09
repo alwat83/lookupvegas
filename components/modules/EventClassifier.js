@@ -6,16 +6,20 @@ import styles from './EventClassifier.module.css';
 export default function EventClassifier() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [isMock, setIsMock] = useState(false);
+    const [needsAuth, setNeedsAuth] = useState(false);
 
     useEffect(() => {
         async function fetchEvents() {
             try {
                 const res = await fetch('/api/events');
                 const json = await res.json();
+                
+                if (json.requiresAuth) {
+                    setNeedsAuth(true);
+                }
+                
                 if (json.data) {
                     setEvents(json.data);
-                    setIsMock(json.mock);
                 }
             } catch (err) {
                 console.error("Failed to load events", err);
@@ -44,8 +48,10 @@ export default function EventClassifier() {
         <div className="card">
             <div className="card-header">
                 <h3 className="card-title">Event Impact Classifier</h3>
-                {isMock && (
-                    <span className="badge badge-warning" title="Add TICKETMASTER_API_KEY to .env.local">Demo Mode</span>
+                {needsAuth ? (
+                    <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--accent-warning)', border: '1px solid rgba(245, 158, 11, 0.2)' }} title="Add SEATGEEK_CLIENT_ID to .env.local">Missing API Key</span>
+                ) : (
+                    <span className="badge badge-compression">Live API</span>
                 )}
             </div>
 
