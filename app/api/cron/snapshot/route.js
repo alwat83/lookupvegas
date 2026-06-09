@@ -59,7 +59,35 @@ export async function GET(request) {
         // (Weighted composite: Flights 60%, Hotels 40%. Baseline flights ~450)
         // Adjust for typical daily arrivals if OpenSky yields different baseline
         const flightVelocity = Math.min((totalArrivals / 450) * 50, 100);
-        const cityVelocityIndex = (flightVelocity * 0.6) + (compressionScore * 0.4);
+        let cityVelocityIndex = (flightVelocity * 0.6) + (compressionScore * 0.4);
+
+        // 4.5. Synthesize Weather Impacts
+        let weatherImpactScore = 0;
+        try {
+            const url = 'https://api.open-meteo.com/v1/forecast?latitude=36.1628&longitude=-115.1398&current=temperature_2m,wind_speed_10m,precipitation&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=America%2FLos_Angeles';
+            const weatherRes = await fetch(url);
+            if (weatherRes.ok) {
+                const wData = await weatherRes.json();
+                const temp = wData.current?.temperature_2m || 0;
+                const wind = wData.current?.wind_speed_10m || 0;
+                const precip = wData.current?.precipitation || 0;
+
+                if (temp >= 110) weatherImpactScore += 80;
+                else if (temp >= 105) weatherImpactScore += 40;
+                if (wind >= 30) weatherImpactScore += 60;
+                else if (wind >= 20) weatherImpactScore += 30;
+                if (precip > 0.5) weatherImpactScore += 50;
+                else if (precip > 0.1) weatherImpactScore += 30;
+                
+                weatherImpactScore = Math.min(100, weatherImpactScore);
+                
+                // Weather Penalty: Severe weather reduces City Velocity by up to 15 points
+                const weatherPenalty = (weatherImpactScore / 100) * 15;
+                cityVelocityIndex = Math.max(0, cityVelocityIndex - weatherPenalty);
+            }
+        } catch (e) {
+            console.warn("Snapshot weather scraper failed", e);
+        }
 
         // 5. Insert Snapshot into Firebase Firestore
         const snapshotDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD

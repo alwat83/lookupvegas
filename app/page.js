@@ -3,6 +3,7 @@
 import Hero from '../components/Hero';
 import FlightSignals from '../components/modules/FlightSignals';
 import CompressionZones from '../components/modules/CompressionZones';
+import WeatherImpacts from '../components/modules/WeatherImpacts';
 import EventClassifier from '../components/modules/EventClassifier';
 import VelocityChart from '../components/modules/VelocityChart';
 import dynamic from 'next/dynamic';
@@ -40,6 +41,7 @@ export default function Home() {
           <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <FlightSignals />
             <CompressionZones />
+            <WeatherImpacts />
             <EventClassifier />
           </div>
 
