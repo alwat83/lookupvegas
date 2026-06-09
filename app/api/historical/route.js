@@ -1,36 +1,38 @@
+import { db } from '../../../lib/firebaseAdmin';
+
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
-        // Simulated DB fetch for trailing 30 days
-        // In production, this would be: SELECT * FROM daily_metrics ORDER BY date ASC LIMIT 30;
+        const snapshot = await db.collection('daily_metrics')
+            .orderBy('date', 'desc')
+            .limit(30)
+            .get();
 
-        // Generate 30 days of realistic synthetic data for the Proof of Concept
         const data = [];
-        const today = new Date();
-
-        // Baseline metrics
-        let currentVelocity = 62.0;
-
-        for (let i = 30; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-
-            // Add some realistic noise, maybe a weekly sine wave plus random walk
-            const dayOfWeek = d.getDay();
-            const weekendSpike = (dayOfWeek === 5 || dayOfWeek === 6) ? 15 : 0; // Friday/Sat spike
-            const randomNoise = (Math.random() - 0.5) * 8; // +/- 4
-
-            // Gentle upward trend
-            const trend = (30 - i) * 0.2;
-
-            let score = currentVelocity + weekendSpike + randomNoise + trend;
-
-            // Clamp to 1-100
-            score = Math.max(1, Math.min(100, score));
-
+        snapshot.forEach(doc => {
+            const row = doc.data();
+            // date is assumed to be "YYYY-MM-DD"
+            // We use UTC to avoid off-by-one errors from local timezone shifts
+            const d = new Date(`${row.date}T12:00:00Z`);
+            
             data.push({
-                date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                velocity: parseFloat(score.toFixed(1)),
-                events: (dayOfWeek === 5 && Math.random() > 0.5) ? 1 : 0 // randomly flag a Friday as a major event
+                date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+                velocity: parseFloat(row.city_velocity_index || 0).toFixed(1),
+                events: row.hotel_compression_score > 90 ? 1 : 0
+            });
+        });
+
+        // Recharts expects chronological order for left-to-right plotting
+        data.reverse();
+
+        // Provide a graceful initialization state if the database is newly created and empty
+        if (data.length === 0) {
+            const today = new Date();
+            data.push({
+                date: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                velocity: 50.0,
+                events: 0
             });
         }
 
@@ -40,6 +42,11 @@ export async function GET() {
 
     } catch (error) {
         console.error("Historical API Error:", error);
-        return Response.json({ error: "Failed to fetch historic data" }, { status: 500 });
+        
+        // Fallback for UI resilience if Firebase is misconfigured during local dev
+        return Response.json({
+            data: [{ date: 'Pending DB', velocity: 0 }],
+            error: "Failed to fetch historic data from DB"
+        }, { status: 200 });
     }
 }

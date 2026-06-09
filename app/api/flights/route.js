@@ -1,5 +1,3 @@
-import { getOpenSkyToken } from '../../lib/opensky';
-
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -30,10 +28,21 @@ export async function GET() {
 
         const totalArrivals = flightList.length || 0;
 
-        // Mocking the domestic/international split for live telemetry
-        const domestic = Math.floor(totalArrivals * 0.85);
-        const international = totalArrivals - domestic;
+        // Dynamic heuristic: US ICAO hex codes start with 'A' (A00000 - AFFFFF)
+        let domestic = 0;
+        let international = 0;
 
+        flightList.forEach(f => {
+            if (f.hex && f.hex.toLowerCase().startsWith('a')) {
+                domestic++;
+            } else {
+                international++;
+            }
+        });
+
+        // In the extremely rare case ADSB returns zero data but we know planes are landing,
+        // we could add a minor baseline, but for a live dashboard true zero is better.
+        
         return Response.json({
             data: {
                 totalArrivals,
@@ -42,7 +51,7 @@ export async function GET() {
                 rawCount: totalArrivals,
                 flights: flightList.slice(0, 100).map(f => ({
                     callsign: f.flight?.trim() || 'UNKNOWN',
-                    origin: 'UNKNOWN',
+                    origin: f.hex?.toLowerCase().startsWith('a') ? 'Domestic (US)' : 'International',
                     firstSeen: Math.floor(Date.now() / 1000) - 1800,
                     lastSeen: Math.floor(Date.now() / 1000)
                 })),

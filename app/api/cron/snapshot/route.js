@@ -1,5 +1,6 @@
-import { sql } from '@vercel/postgres';
+import { db } from '../../../../lib/firebaseAdmin';
 import { getOpenSkyToken } from '../../../lib/opensky';
+import * as cheerio from 'cheerio';
 
 export async function GET(request) {
     try {
@@ -28,65 +29,49 @@ export async function GET(request) {
             totalArrivals = flightData.length || 0;
         }
 
-        // 3. Fetch Amadeus Hotel Compression (Next Weekend)
+        // 3. Synthesize Hotel Compression via Event Web Scraping
         let compressionScore = 50.0; // Default Neutral
-        const amadeusBase64 = Buffer.from(`${process.env.AMADEUS_CLIENT_ID}:${process.env.AMADEUS_CLIENT_SECRET}`).toString("base64");
-
-        // Quick Auth
-        const amadeusAuth = await fetch("https://test.api.amadeus.com/v1/security/oauth2/token", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": `Basic ${amadeusBase64}`
-            },
-            body: "grant_type=client_credentials"
-        });
-
-        if (amadeusAuth.ok) {
-            const { access_token } = await amadeusAuth.json();
-
-            // Find next Friday
-            const targetDate = new Date();
-            const dayOfWeek = targetDate.getDay();
-            const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
-            targetDate.setDate(targetDate.getDate() + daysUntilFriday);
-            const checkIn = targetDate.toISOString().split('T')[0];
-
-            const hotelRes = await fetch(`https://test.api.amadeus.com/v3/shopping/hotel-offers?cityCode=LAS&checkInDate=${checkIn}&adults=2`, {
-                headers: { "Authorization": `Bearer ${access_token}` }
+        try {
+            const eventRes = await fetch('https://lasvegasweekly.com/events/', {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
             });
-
-            if (hotelRes.ok) {
-                const hData = await hotelRes.json();
-                if (hData.data && hData.data.length > 0) {
-                    const totalRate = hData.data.reduce((sum, hotel) => {
-                        const price = hotel.offers?.[0]?.price?.total || 0;
-                        return sum + parseFloat(price);
-                    }, 0);
-                    const avgRate = totalRate / hData.data.length;
-                    // Dummy heuristic for score
-                    compressionScore = Math.min(Math.max((avgRate / 250) * 50, 0), 100);
+            if (eventRes.ok) {
+                const html = await eventRes.text();
+                const $ = cheerio.load(html);
+                let eventsStr = "";
+                $('.event-item, .list-item, article.event').slice(0, 10).each((i, el) => {
+                    eventsStr += $(el).text().toLowerCase() + " ";
+                });
+                
+                if (eventsStr.includes('f1') || eventsStr.includes('grand prix') || eventsStr.includes('ces') || eventsStr.includes('super bowl')) {
+                    compressionScore = 98;
+                } else if (eventsStr.includes('stadium') || eventsStr.includes('raiders') || eventsStr.includes('festival') || eventsStr.includes('sphere')) {
+                    compressionScore = 78;
+                } else if (eventsStr.length > 50) {
+                    compressionScore = 65;
                 }
             }
+        } catch (e) {
+            console.warn("Snapshot event scraper failed", e);
         }
 
         // 4. Calculate City Velocity Index
         // (Weighted composite: Flights 60%, Hotels 40%. Baseline flights ~450)
+        // Adjust for typical daily arrivals if OpenSky yields different baseline
         const flightVelocity = Math.min((totalArrivals / 450) * 50, 100);
         const cityVelocityIndex = (flightVelocity * 0.6) + (compressionScore * 0.4);
 
-        // 5. Insert Snapshot into Vercel Postgres
+        // 5. Insert Snapshot into Firebase Firestore
         const snapshotDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-        const dbResult = await sql`
-        INSERT INTO daily_metrics (date, flight_arrivals_total, hotel_compression_score, city_velocity_index)
-        VALUES (${snapshotDate}, ${totalArrivals}, ${compressionScore}, ${cityVelocityIndex})
-        ON CONFLICT (date) 
-        DO UPDATE SET 
-            flight_arrivals_total = EXCLUDED.flight_arrivals_total,
-            hotel_compression_score = EXCLUDED.hotel_compression_score,
-            city_velocity_index = EXCLUDED.city_velocity_index;
-    `;
+        const docRef = db.collection('daily_metrics').doc(snapshotDate);
+        await docRef.set({
+            date: snapshotDate,
+            flight_arrivals_total: totalArrivals,
+            hotel_compression_score: compressionScore,
+            city_velocity_index: cityVelocityIndex,
+            timestamp: new Date().toISOString()
+        }, { merge: true });
 
         return Response.json({
             message: "Snapshot successful",
