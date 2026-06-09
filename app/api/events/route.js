@@ -72,7 +72,7 @@ export async function GET() {
         if (events.length === 0) {
             events.push(
                 { id: 'ev-1', name: 'Las Vegas Grand Prix (F1)', date: 'Upcoming Weekend', venue: 'Las Vegas Strip Circuit', impact: 'Tier 1: High Impact', impactScore: 98 },
-                { id: 'ev-2', name: 'U2: UV Achtung Baby Live', date: 'Upcoming Weekend', venue: 'Sphere', impact: 'Tier 2: Med Impact', impactScore: 80 },
+                { id: 'ev-2', name: 'Raiders vs. Chiefs', date: 'Upcoming Sunday', venue: 'Allegiant Stadium', impact: 'Tier 1: High Impact', impactScore: 90 },
                 { id: 'ev-3', name: 'Cirque du Soleil - O', date: 'Tonight', venue: 'Bellagio', impact: 'Tier 3: Baseline', impactScore: 40 },
                 { id: 'ev-4', name: 'Consumer Electronics Show (CES)', date: 'Upcoming', venue: 'LVCC', impact: 'Tier 1: High Impact', impactScore: 100 }
             );
@@ -92,8 +92,9 @@ export async function GET() {
         // Graceful degradation fallback
         return Response.json({
             data: [
-                { id: 'fail-1', name: 'Vegas Golden Knights vs Oilers', date: 'Tonight', venue: 'T-Mobile Arena', impact: 'Tier 2: Med Impact', impactScore: 75 },
-                { id: 'fail-2', name: 'Adele Weekends', date: 'Upcoming Weekend', venue: 'Caesars Palace', impact: 'Tier 2: Med Impact', impactScore: 80 }
+                { id: 'fail-1', name: 'Las Vegas Grand Prix (F1)', date: 'Upcoming Weekend', venue: 'Las Vegas Strip Circuit', impact: 'Tier 1: High Impact', impactScore: 98 },
+                { id: 'fail-2', name: 'Adele Weekends', date: 'Upcoming Weekend', venue: 'Caesars Palace', impact: 'Tier 2: Med Impact', impactScore: 80 },
+                { id: 'fail-3', name: 'Vegas Golden Knights vs Oilers', date: 'Tonight', venue: 'T-Mobile Arena', impact: 'Tier 2: Med Impact', impactScore: 75 }
             ],
             source: 'fallback'
         }, { status: 200 });
