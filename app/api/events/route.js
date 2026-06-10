@@ -1,9 +1,21 @@
 import * as cheerio from 'cheerio';
+import { getUserProfile } from '../../../lib/authMiddleware';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
     try {
+        const { isPremium } = await getUserProfile(req);
+
+        if (!isPremium) {
+            return Response.json({
+                data: [],
+                requiresAuth: true,
+                locked: true,
+                message: 'Event impact modeling is a Premium Intelligence tier feature.'
+            });
+        }
+
         const clientId = process.env.SEATGEEK_CLIENT_ID;
         
         const fallbackData = [
@@ -20,7 +32,7 @@ export async function GET() {
         if (!clientId) {
             return Response.json({
                 data: fallbackData.slice(0, 5),
-                requiresAuth: true,
+                requiresAuth: false,
                 source: 'fallback'
             });
         }

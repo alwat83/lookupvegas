@@ -1,40 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import "leaflet/dist/leaflet.css";
-
-import "leaflet-defaulticon-compatibility";
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
-import L from "leaflet";
-
-// Dynamically import the map components so they don't break SSR
-const MapContainer = dynamic(
-    () => import("react-leaflet").then((mod) => mod.MapContainer),
-    { ssr: false }
-);
-const TileLayer = dynamic(
-    () => import("react-leaflet").then((mod) => mod.TileLayer),
-    { ssr: false }
-);
-const Marker = dynamic(
-    () => import("react-leaflet").then((mod) => mod.Marker),
-    { ssr: false }
-);
-const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
-    ssr: false,
-});
-const Tooltip = dynamic(() => import("react-leaflet").then((mod) => mod.Tooltip), {
-    ssr: false,
-});
+import DeckGL from "@deck.gl/react";
+import { MapView } from "@deck.gl/core";
+import { ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import { TileLayer } from "@deck.gl/geo-layers";
+import { BitmapLayer } from "@deck.gl/layers";
 
 export default function FlightMap() {
     const [flights, setFlights] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showLabels, setShowLabels] = useState(false);
 
-    // KLAS Airport approximate coordinates
-    const klasPosition = [36.084, -115.153];
+    const [viewState, setViewState] = useState({
+        longitude: -115.153,
+        latitude: 36.084,
+        zoom: 9.5,
+        pitch: 45, // 3D Pitch
+        bearing: 0
+    });
 
     useEffect(() => {
         async function fetchRadar() {
@@ -52,71 +36,103 @@ export default function FlightMap() {
         }
 
         fetchRadar();
-        // Poll every 60 seconds to respect API limits
         const interval = setInterval(fetchRadar, 60000);
         return () => clearInterval(interval);
     }, []);
 
-    // Custom Icon structure loading natively
-    // A simple plain dot or triangle is best for the Bloomerg terminal look
-    let aircraftIcon = null;
-    if (typeof window !== "undefined") {
-        aircraftIcon = new L.DivIcon({
-            className: "radar-blip",
-            html: `<div style="width: 12px; height: 12px; background-color: var(--accent-growth); border-radius: 50%; border: 2px solid var(--bg-primary); box-shadow: 0 0 8px var(--accent-growth);"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6]
-        });
-    }
+    const tileLayer = new TileLayer({
+        data: 'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        minZoom: 0,
+        maxZoom: 19,
+        tileSize: 256,
+        renderSubLayers: props => {
+            const { bbox: { west, south, east, north } } = props.tile;
+            return new BitmapLayer(props, {
+                data: null,
+                image: props.data,
+                bounds: [west, south, east, north]
+            });
+        }
+    });
+
+    const scatterLayer = new ScatterplotLayer({
+        id: 'flights-layer',
+        data: flights,
+        pickable: true,
+        opacity: 0.8,
+        stroked: true,
+        filled: true,
+        radiusScale: 10,
+        radiusMinPixels: 4,
+        radiusMaxPixels: 20,
+        lineWidthMinPixels: 2,
+        getPosition: d => [d.longitude || 0, d.latitude || 0, (d.altitude || 0) * 0.3048], // Altitude in meters
+        getFillColor: [16, 185, 129], // --accent-growth
+        getLineColor: [15, 17, 21], // --bg-primary
+        updateTriggers: {
+            getPosition: [flights]
+        }
+    });
+
+    const textLayer = new TextLayer({
+        id: 'flight-labels',
+        data: showLabels ? flights : [],
+        pickable: false,
+        getPosition: d => [d.longitude || 0, d.latitude || 0, ((d.altitude || 0) * 0.3048) + 200], // Slightly above
+        getText: d => d.callsign || 'UNK',
+        getSize: 12,
+        getColor: [249, 250, 251], // --text-primary
+        getAngle: 0,
+        getTextAnchor: 'start',
+        getAlignmentBaseline: 'center',
+        pixelOffset: [15, 0],
+        background: true,
+        getBackgroundColor: [26, 29, 36, 200],
+    });
+
+    // Custom tooltip
+    const getTooltip = ({ object }) => {
+        if (!object) return null;
+        return {
+            html: `
+            <div style="font-family: monospace; font-size: 12px; background: rgba(15,17,21,0.9); border: 1px solid #262A33; padding: 10px; border-radius: 4px; color: #10B981; backdrop-filter: blur(4px);">
+                <div style="color: #F9FAFB; font-weight: bold; margin-bottom: 4px;">${object.callsign}</div>
+                <div>ALT: ${Math.round(object.altitude).toLocaleString()} ft</div>
+                <div>SPD: ${Math.round(object.velocity)} kts</div>
+                <div>HDG: ${Math.round(object.heading)}°</div>
+            </div>
+            `,
+            style: {
+                backgroundColor: 'transparent',
+                boxShadow: 'none',
+                padding: 0
+            }
+        };
+    };
 
     return (
-        <div style={{ height: "400px", width: "100%", borderRadius: "6px", overflow: "hidden", border: "1px solid var(--border-color)", position: 'relative' }}>
+        <div style={{ height: "500px", width: "100%", borderRadius: "8px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.08)", position: 'relative' }} className="glass-panel">
             {loading && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-card)' }}>
-                    <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.875rem' }}>Initializing Radar Sweep...</span>
+                    <div className="live-indicator" style={{ marginRight: '8px' }}></div>
+                    <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.875rem' }}>Initializing 3D Radar Sweep...</span>
                 </div>
             )}
 
             {!loading && typeof window !== "undefined" && (
-                <MapContainer
-                    center={klasPosition}
-                    zoom={10}
-                    scrollWheelZoom={true}
-                    style={{ height: "100%", width: "100%", backgroundColor: "#0F1115" }}
-                    zoomControl={true}
-                >
-                    {/* Use CARTO Dark Matter for the "Terminal" aesthetic */}
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    />
-
-                    {flights.map((flight) => (
-                        <Marker
-                            key={flight.icao}
-                            position={[flight.latitude, flight.longitude]}
-                            icon={aircraftIcon}
-                        >
-                            <Popup className="premium-popup">
-                                <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--bg-primary)" }}>
-                                    <div><strong>{flight.callsign}</strong></div>
-                                    <div>ALT: {Math.round(flight.altitude).toLocaleString()} ft</div>
-                                    <div>SPD: {Math.round(flight.velocity)} kts</div>
-                                    <div>HDG: {Math.round(flight.heading)}°</div>
-                                </div>
-                            </Popup>
-                            {showLabels && (
-                                <Tooltip direction="right" offset={[10, 0]} opacity={1} permanent className="aircraft-tooltip" >
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 600 }}>{flight.callsign}</span>
-                                </Tooltip>
-                            )}
-                        </Marker>
-                    ))}
-                </MapContainer>
+                <DeckGL
+                    views={new MapView({ repeat: true })}
+                    initialViewState={viewState}
+                    onViewStateChange={({ viewState }) => setViewState(viewState)}
+                    controller={true}
+                    layers={[tileLayer, scatterLayer, textLayer]}
+                    getTooltip={getTooltip}
+                />
             )}
 
-            <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 999, backgroundColor: 'rgba(26, 29, 36, 0.8)', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', backdropFilter: 'blur(4px)' }}>
-                <span style={{ color: 'var(--accent-growth)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>● LIVE TARGETS: {flights.length}</span>
+            <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 999, backgroundColor: 'rgba(26, 29, 36, 0.85)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center' }}>
+                <div className="live-indicator" style={{ marginRight: '8px' }}></div>
+                <span className="glow-text" style={{ color: 'var(--accent-growth)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>LIVE TARGETS: {flights.length}</span>
             </div>
 
             <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 999 }}>
@@ -133,7 +149,8 @@ export default function FlightMap() {
                         cursor: 'pointer',
                         backdropFilter: 'blur(4px)',
                         transition: 'all 0.2s ease',
-                        fontWeight: 600
+                        fontWeight: 600,
+                        boxShadow: showLabels ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none'
                     }}
                 >
                     {showLabels ? 'HIDE LABELS' : 'SHOW LABELS'}

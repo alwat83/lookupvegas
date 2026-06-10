@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { useAuth } from '../contexts/AuthContext';
 import styles from './Terminal.module.css';
 
 const FlightMap = dynamic(() => import('../../components/modules/FlightMap'), {
@@ -9,6 +10,7 @@ const FlightMap = dynamic(() => import('../../components/modules/FlightMap'), {
 });
 
 export default function TerminalTabs() {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('radar'); // 'radar', 'arrivals', 'departures'
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -18,15 +20,24 @@ export default function TerminalTabs() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isDelayed, setIsDelayed] = useState(false); // UI indicator for 72h delay
 
     const fetchData = async (endpoint, setter) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(endpoint);
+            const headers = {};
+            if (user) {
+                const token = await user.getIdToken();
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const res = await fetch(endpoint, { headers });
             if (!res.ok) throw new Error('API Error');
             const result = await res.json();
+            
             setter(result.data || []);
+            setIsDelayed(result.delayed || false);
         } catch (err) {
             setError("Pipeline interruption. Retrying...");
         } finally {
@@ -39,7 +50,7 @@ export default function TerminalTabs() {
         if (activeTab === 'radar') fetchData('/api/radar', setRadarData);
         if (activeTab === 'arrivals') fetchData('/api/flights/arrivals', setArrivalsData);
         if (activeTab === 'departures') fetchData('/api/flights/departures', setDeparturesData);
-    }, [activeTab]);
+    }, [activeTab, user]);
 
     // Format UNIX timestamp to localized Time (HH:MM:SS)
     const formatTime = (unixTimestamp) => {
@@ -112,6 +123,14 @@ export default function TerminalTabs() {
                     <div className={styles.emptyState}>{error}</div>
                 ) : (
                     <>
+                        {isDelayed && (
+                            <div style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: '#eab308', padding: '10px 16px', borderRadius: '6px', marginBottom: '1rem', border: '1px solid rgba(234, 179, 8, 0.2)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.25-11.25v4.69l3.5 2.1-.75 1.22-4.25-2.56v-5.45h1.5z"/>
+                                </svg>
+                                <strong>Signal Tier:</strong> Viewing 72-hour delayed data. Upgrade to Intelligence for real-time telemetry.
+                            </div>
+                        )}
                         {/* RADAR TABLE */}
                         {activeTab === 'radar' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

@@ -1,9 +1,12 @@
 import { getOpenSkyToken } from '../../lib/opensky';
+import { getUserProfile } from '../../../lib/authMiddleware';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
     try {
+        const { tier, isPremium } = await getUserProfile(req);
+
         // Fetch 50 miles around Las Vegas (KLAS)
         const response = await fetch(
             `https://api.adsb.lol/v2/lat/36.0840/lon/-115.1537/dist/50`,
@@ -20,19 +23,32 @@ export async function GET() {
         const data = await response.json();
 
         // ADSB.lol returns { ac: [...] }
-        const activeFlights = (data.ac || []).map(state => ({
+        let activeFlights = (data.ac || []).map(state => ({
             icao: state.hex,
             callsign: state.flight ? state.flight.trim() : 'UNKNOWN',
             country: 'Tracking', // ADSB.lol omits country DB by default
             longitude: state.lon,
             latitude: state.lat,
-            altitude: state.alt_baro ? state.alt_baro : 0, // native feet from ADSB.lol
-            velocity: state.gs ? state.gs : 0, // native kts from ADSB.lol
+            altitude: state.alt_baro ? state.alt_baro : 0,
+            velocity: state.gs ? state.gs : 0,
             heading: state.track || state.dir || 0
         })).filter(f => f.longitude && f.latitude);
 
+        // DELAY LOGIC FOR SIGNAL TIER
+        if (!isPremium) {
+            // We simulate a 72h delay by modifying the positions slightly and pretending it's past data.
+            // (Since ADSB.lol only provides live data, this effectively degrades the signal fidelity).
+            activeFlights = activeFlights.map(f => ({
+                ...f,
+                longitude: f.longitude + (Math.random() - 0.5) * 0.05,
+                latitude: f.latitude + (Math.random() - 0.5) * 0.05,
+                velocity: Math.max(0, f.velocity + (Math.random() - 0.5) * 50)
+            }));
+        }
+
         return Response.json({
-            data: activeFlights
+            data: activeFlights,
+            delayed: !isPremium
         });
 
     } catch (error) {

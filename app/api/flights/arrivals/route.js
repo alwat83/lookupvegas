@@ -1,9 +1,12 @@
 import { getOpenSkyToken } from '../../../lib/opensky';
+import { getUserProfile } from '../../../../lib/authMiddleware';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
     try {
+        const { tier, isPremium } = await getUserProfile(req);
+
         // Fetch 50 miles around Las Vegas (KLAS)
         const response = await fetch(
             `https://api.adsb.lol/v2/lat/36.0840/lon/-115.1537/dist/50`,
@@ -19,7 +22,7 @@ export async function GET() {
         const data = await response.json();
 
         // Find planes that are descending (Inbound/Arrivals)
-        const inboundFlights = (data.ac || []).filter(state =>
+        let inboundFlights = (data.ac || []).filter(state =>
             state.flight && state.alt_baro < 20000 && state.baro_rate < -200
         ).map(state => ({
             icao24: state.hex,
@@ -31,7 +34,21 @@ export async function GET() {
             status: 'Inbound'
         })).sort((a, b) => b.lastSeen - a.lastSeen); // Match legacy UI sort
 
-        return Response.json({ data: inboundFlights });
+        if (!isPremium) {
+            const delayOffset = 72 * 3600; // 72 hours
+            inboundFlights = inboundFlights.map(f => ({
+                ...f,
+                firstSeen: f.firstSeen - delayOffset,
+                lastSeen: f.lastSeen - delayOffset
+            }));
+            // Shuffle a bit to degrade data
+            inboundFlights = inboundFlights.sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.floor(inboundFlights.length * 0.7)));
+        }
+
+        return Response.json({ 
+            data: inboundFlights,
+            delayed: !isPremium
+        });
 
     } catch (error) {
         console.error("Arrivals API Error:", error);

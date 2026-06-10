@@ -58,7 +58,7 @@ export default function AboutPage() {
 
             <section className={styles.ctaSection}>
                 <h2 className={styles.ctaHeading}>Ready to access the terminal?</h2>
-                <Link href="/" className={styles.btnPrimary}>Launch Dashboard</Link>
+                <Link href="/terminal" className={styles.btnPrimary}>Launch Dashboard</Link>
             </section>
         </main>
     )

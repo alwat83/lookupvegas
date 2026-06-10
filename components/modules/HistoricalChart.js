@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '../../app/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import {
     AreaChart,
     Area,
@@ -12,8 +14,6 @@ import {
     Legend
 } from 'recharts';
 import styles from './HistoricalChart.module.css';
-
-// Remove local mock generator, we will fetch from API
 
 // Custom tooltip for styling
 const CustomTooltip = ({ active, payload, label }) => {
@@ -39,17 +39,28 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function HistoricalChart() {
+    const { user, userProfile } = useAuth();
+    const router = useRouter();
     const [data, setData] = useState([]);
     const [isMounted, setIsMounted] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [isDelayed, setIsDelayed] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
         const fetchData = async () => {
             try {
-                const res = await fetch('/api/historical');
+                const headers = {};
+                if (user) {
+                    const token = await user.getIdToken();
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const res = await fetch('/api/historical', { headers });
                 if (!res.ok) throw new Error("API error");
                 const json = await res.json();
+
+                setIsDelayed(json.delayed || false);
 
                 // Map the /api/historical "velocity" base into the detailed metrics the chart expects
                 // In a production scenario, the DB would return these exact columns.
@@ -73,9 +84,16 @@ export default function HistoricalChart() {
         };
 
         fetchData();
-    }, []);
+    }, [user]);
+
+    const isPremium = userProfile?.tier === 'Intelligence' || userProfile?.tier === 'Enterprise';
 
     const exportToCSV = () => {
+        if (!isPremium) {
+            router.push('/pricing');
+            return;
+        }
+
         if (!data || data.length === 0) return;
 
         const headers = ["Date", "Arrival Volume", "Compression Index", "CVI Score"];
@@ -100,8 +118,10 @@ export default function HistoricalChart() {
         <div className={styles.moduleCard}>
             <div className={styles.cardHeader}>
                 <div>
-                    <h3 className={styles.cardTitle}>30-Day Historical Velocity</h3>
-                    <p className={styles.cardSubtitle}>Arrival volume vs Hotel Compression Index.</p>
+                    <h3 className={styles.cardTitle}>{isDelayed ? '7-Day Trend Snapshot' : '30-Day Historical Velocity'}</h3>
+                    <p className={styles.cardSubtitle}>
+                        {isDelayed ? 'Data delayed by 72h (Signal Tier).' : 'Arrival volume vs Hotel Compression Index.'}
+                    </p>
                 </div>
                 <button
                     onClick={exportToCSV}
@@ -113,7 +133,7 @@ export default function HistoricalChart() {
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    Export CSV
+                    {isPremium ? 'Export CSV' : 'Upgrade to Export'}
                 </button>
             </div>
 

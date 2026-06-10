@@ -3,33 +3,43 @@ import styles from './Footer.module.css';
 
 export default function Footer() {
     return (
-        <footer className={styles.footer}>
-            <div className={styles.container}>
-                <div className={styles.brand}>
-                    <div className={styles.logo}>
-                        <span className={styles.logoIcon}>N</span>
-                        <span className={styles.logoText}>LookupVegas</span>
-                    </div>
-                    <p className={styles.tagline}>Measure Las Vegas City Velocity in Real Time.</p>
-                </div>
-
+        <footer className={styles.footerContainer}>
+            <div className="container">
                 <div className={styles.linksGrid}>
                     <div className={styles.linkColumn}>
-                        <h4 className={styles.columnHeader}>Product</h4>
-                        <Link href="/" className={styles.footerLink}>Dashboard</Link>
+                        <h4 className={styles.columnHeader}>Terminal</h4>
+                        <Link href="/terminal" className={styles.footerLink}>Dashboard</Link>
                         <Link href="/pricing" className={styles.footerLink}>Pricing</Link>
+                        <Link href="/signup" className={styles.footerLink}>Request Access</Link>
+                    </div>
+                    <div className={styles.linkColumn}>
+                        <h4 className={styles.columnHeader}>Intelligence</h4>
                         <Link href="/methodology" className={styles.footerLink}>Methodology</Link>
+                        <Link href="/api" className={styles.footerLink}>API Gateway</Link>
+                        <Link href="/status" className={styles.footerLink}>System Status</Link>
+                    </div>
+                    <div className={styles.linkColumn}>
+                        <h4 className={styles.columnHeader}>Legal</h4>
+                        <Link href="/privacy" className={styles.footerLink}>Privacy Policy</Link>
+                        <Link href="/terms" className={styles.footerLink}>Terms of Service</Link>
+                        <Link href="/data-policy" className={styles.footerLink}>Data Processing</Link>
                     </div>
                     <div className={styles.linkColumn}>
                         <h4 className={styles.columnHeader}>Company</h4>
                         <Link href="/about" className={styles.footerLink}>About Us</Link>
                         <Link href="/contact" className={styles.footerLink}>Contact</Link>
-                        <Link href="/privacy" className={styles.footerLink}>Privacy Policy</Link>
+                        <a href="https://twitter.com/lookupvegas" target="_blank" rel="noreferrer" className={styles.footerLink}>X (Twitter)</a>
+                        <a href="https://linkedin.com/company/lookupvegas" target="_blank" rel="noreferrer" className={styles.footerLink}>LinkedIn</a>
                     </div>
                 </div>
-            </div>
-            <div className={styles.bottomBar}>
-                <p className={styles.copyright}>&copy; {new Date().getFullYear()} LookupVegas. Data signals provided under conceptual license.</p>
+                
+                <div className={styles.footerBottom}>
+                    <div className={styles.logo}>LookupVegas</div>
+                    <p className={styles.copyright}>
+                        &copy; {new Date().getFullYear()} LookupVegas Intelligence. All rights reserved.<br/>
+                        Proprietary predictive modeling and data telemetry for Las Vegas hospitality.
+                    </p>
+                </div>
             </div>
         </footer>
     );

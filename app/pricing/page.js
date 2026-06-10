@@ -1,11 +1,68 @@
+"use client";
+
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import styles from './Pricing.module.css';
 
-export const metadata = {
-    title: 'LookupVegas | Pricing & Access',
-    description: 'Monetization tiers for the City Velocity Index. Choose between Free Signal, Premium Intelligence, or Enterprise API access.',
-};
-
 export default function PricingPage() {
+    const { user, userProfile } = useAuth();
+    const router = useRouter();
+    const [loadingCheckout, setLoadingCheckout] = useState(false);
+    const [loadingPortal, setLoadingPortal] = useState(false);
+
+    const handleSubscribe = async () => {
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        setLoadingCheckout(true);
+        try {
+            const res = await fetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    returnUrl: window.location.origin + '/pricing'
+                })
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            }
+        } catch (error) {
+            console.error('Checkout error:', error);
+        } finally {
+            setLoadingCheckout(false);
+        }
+    };
+
+    const handleManageSubscription = async () => {
+        setLoadingPortal(true);
+        try {
+            const res = await fetch('/api/stripe/portal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    returnUrl: window.location.origin + '/pricing'
+                })
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            }
+        } catch (error) {
+            console.error('Portal error:', error);
+        } finally {
+            setLoadingPortal(false);
+        }
+    };
+
+    const isPremium = userProfile?.tier === 'Intelligence' || userProfile?.tier === 'Enterprise';
+
     return (
         <main className={styles.pricingContainer}>
             <div className={styles.heroSection}>
@@ -37,7 +94,9 @@ export default function PricingPage() {
                         </ul>
                     </div>
                     <div className={styles.cardAction}>
-                        <button className={`${styles.actionBtn} ${styles.btnOutline}`}>Current Tier</button>
+                        <button className={`${styles.actionBtn} ${styles.btnOutline}`} disabled>
+                            {userProfile?.tier === 'Free' ? 'Current Tier' : 'Included'}
+                        </button>
                     </div>
                 </div>
 
@@ -63,7 +122,23 @@ export default function PricingPage() {
                         </ul>
                     </div>
                     <div className={styles.cardAction}>
-                        <button className={`${styles.actionBtn} ${styles.btnPrimary}`}>Subscribe</button>
+                        {isPremium ? (
+                            <button 
+                                className={`${styles.actionBtn} ${styles.btnOutline}`} 
+                                onClick={handleManageSubscription}
+                                disabled={loadingPortal}
+                            >
+                                {loadingPortal ? 'Loading...' : 'Manage Subscription'}
+                            </button>
+                        ) : (
+                            <button 
+                                className={`${styles.actionBtn} ${styles.btnPrimary}`} 
+                                onClick={handleSubscribe}
+                                disabled={loadingCheckout}
+                            >
+                                {loadingCheckout ? 'Processing...' : 'Subscribe'}
+                            </button>
+                        )}
                     </div>
                 </div>
 
