@@ -1,65 +1,175 @@
-import styles from './About.module.css';
-import Link from 'next/link';
+"use client";
 
-export const metadata = {
-    title: 'About | LookupVegas',
-    description: 'The mission behind the Las Vegas City Velocity Index.',
-};
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Network, Activity, TrendingUp, Search, Layers, Clock, ArrowRight, ShieldCheck, Database, Server } from 'lucide-react';
+import styles from './About.module.css';
 
 export default function AboutPage() {
     return (
-        <main className={styles.main}>
-            <div className={styles.hero}>
-                <h1 className={styles.title}>Signal Over Noise.</h1>
-                <p className={styles.subtitle}>In high-density markets, historical data is outpaced by real-time movement.</p>
+        <main style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', minHeight: '100vh', paddingBottom: '4rem' }}>
+            
+            {/* Hero Section */}
+            <div style={{ padding: '8rem 2rem 6rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: '#050505', backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(0, 242, 254, 0.03) 0%, transparent 70%)' }}>
+                <div className="container" style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2rem' }}>
+                        <Network size={14} color="var(--primary-color)" /> Enterprise Intelligence Platform
+                    </div>
+                    <h1 style={{ fontSize: '3.5rem', marginBottom: '1.5rem', fontFamily: 'monospace', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+                        Information Advantage <br />in High-Velocity Markets.
+                    </h1>
+                    <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '700px', margin: '0 auto' }}>
+                        LookupVegas is the premier macroeconomic terminal for the Las Vegas hospitality ecosystem. We synthesize fragmented, unstructured telemetry into actionable predictive intelligence.
+                    </p>
+                </div>
             </div>
 
-            <section className={styles.section}>
-                <div className={styles.contentGrid}>
-                    <div className={styles.textContent}>
-                        <h2 className={styles.sectionHeading}>Why Movement Data Matters</h2>
-                        <p className={styles.paragraph}>
-                            Las Vegas is the world's most dynamic hospitality ecosystem. Relying solely on lagging metrics—like quarterly earnings or delayed tourism reports—leaves you operating in the past.
+            <div className="container" style={{ maxWidth: '1100px', margin: '0 auto', padding: '4rem 2rem' }}>
+                
+                {/* Why We Exist & Signal Over Noise */}
+                <section style={{ marginBottom: '6rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
+                    <div>
+                        <h2 style={{ fontSize: '2.5rem', fontFamily: 'monospace', marginBottom: '1.5rem' }}>Why We Exist</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+                            Las Vegas is the most dynamic hospitality economy on earth, subject to massive weekend compression, unprecedented event density, and sudden macroeconomic shifts.
                         </p>
-                        <p className={styles.paragraph}>
-                            LookupVegas was engineered to aggregate and structure fragmented signals—from live aviation telemetry to real-time occupancy compression—into a single, clear velocity index. We filter the noise so you can optimize timing, anticipate demand, and allocate resources with absolute precision.
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: 1.7 }}>
+                            Yet, institutional operators have historically relied on lagging indicators—quarterly earnings, backward-looking tourism reports, and anecdotal sentiment. LookupVegas exists to bridge the gap between market action and market reporting, allowing decision-makers to operate on leading indicators rather than historical shadows.
                         </p>
                     </div>
-                    <div className={styles.statBox}>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>Real-Time</span>
-                            <span className={styles.statLabel}>Telemetry Updates</span>
-                        </div>
-                        <div className={styles.statItem}>
-                            <span className={styles.statValue}>100%</span>
-                            <span className={styles.statLabel}>Live API Driven</span>
-                        </div>
+                    <div style={{ background: 'rgba(20,20,25,0.6)', padding: '3rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', borderLeft: '4px solid var(--primary-color)' }}>
+                        <h3 style={{ fontSize: '1.5rem', fontFamily: 'monospace', marginBottom: '1rem', color: 'var(--primary-color)' }}>Signal Over Noise.</h3>
+                        <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                            In a market flooded with speculative data, true alpha is generated by filtering noise. We ignore sentiment. We ignore surveys. We track the physical, measurable movement of capital and people into the Las Vegas valley.
+                        </p>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <section className={styles.section}>
-                <h2 className={styles.sectionHeading}>Built For Strategists</h2>
-                <div className={styles.personaGrid}>
-                    <div className={styles.personaCard}>
-                        <h3 className={styles.personaTitle}>Hospitality Professionals</h3>
-                        <p className={styles.personaDesc}>Monitor incoming flight volumes and competitive compression to adjust daily rate strategies and staffing models.</p>
+                {/* Information Advantage & Why Traditional Data is Too Late */}
+                <section style={{ marginBottom: '6rem' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                        <h2 style={{ fontSize: '2.5rem', fontFamily: 'monospace', marginBottom: '1rem' }}>The Latency Problem</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '700px', margin: '0 auto' }}>
+                            Reacting to traditional data guarantees you are pricing behind the curve. LookupVegas provides near real-time ingestion pipelines to create an asymmetrical information advantage.
+                        </p>
                     </div>
-                    <div className={styles.personaCard}>
-                        <h3 className={styles.personaTitle}>Event Planners</h3>
-                        <p className={styles.personaDesc}>Avoid peak friction zones. Assess exactly when the city hits saturation to optimize your event's logistical footprint.</p>
-                    </div>
-                    <div className={styles.personaCard}>
-                        <h3 className={styles.personaTitle}>Market Investors</h3>
-                        <p className={styles.personaDesc}>Track macro velocity trends weeks before quarterly reports are public. React to actual ingress signals, not sentiment.</p>
-                    </div>
-                </div>
-            </section>
 
-            <section className={styles.ctaSection}>
-                <h2 className={styles.ctaHeading}>Ready to access the terminal?</h2>
-                <Link href="/terminal" className={styles.btnPrimary}>Launch Dashboard</Link>
-            </section>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                        <div style={{ padding: '2rem 1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Public Financials</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '1rem 0', fontFamily: 'monospace' }}>90-Day Lag</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Historical reflection.</div>
+                        </div>
+                        <div style={{ padding: '2rem 1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Tourism Reports</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '1rem 0', fontFamily: 'monospace' }}>30-Day Lag</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Goverment aggregation.</div>
+                        </div>
+                        <div style={{ padding: '2rem 1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>STR / Market Intel</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '1rem 0', fontFamily: 'monospace' }}>7-Day Lag</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Trailing week performance.</div>
+                        </div>
+                        <div style={{ padding: '2rem 1.5rem', background: 'rgba(0, 242, 254, 0.05)', borderRadius: '4px', textAlign: 'center', border: '1px solid var(--primary-color)', boxShadow: '0 0 20px rgba(0, 242, 254, 0.1)' }}>
+                            <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary-color)' }}>LookupVegas</div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '1rem 0', fontFamily: 'monospace', color: '#fff' }}>Near Real-Time</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Live telemetry & forward pricing.</div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* The Data Pipeline */}
+                <section style={{ marginBottom: '6rem', padding: '4rem', background: '#0a0a0c', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                        <h2 style={{ fontSize: '2.5rem', fontFamily: 'monospace', marginBottom: '1rem' }}>The Intelligence Pipeline</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+                            We ingest, structure, and model raw market signals to produce institutional-grade intelligence.
+                        </p>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
+                        <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <Activity color="var(--text-secondary)" size={24} style={{ marginBottom: '1rem' }} />
+                            <h4 style={{ fontFamily: 'monospace', fontSize: '1.1rem', marginBottom: '0.5rem' }}>1. Ingestion</h4>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>We monitor global distribution systems (GDS), aviation telemetry, and event ticketing graphs.</p>
+                        </div>
+                        <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <Database color="var(--primary-color)" size={24} style={{ marginBottom: '1rem' }} />
+                            <h4 style={{ fontFamily: 'monospace', fontSize: '1.1rem', marginBottom: '0.5rem' }}>2. Structuring</h4>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Raw data is cleaned, normalized against 5 years of historical baselines, and weighted.</p>
+                        </div>
+                        <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <Server color="var(--accent-growth)" size={24} style={{ marginBottom: '1rem' }} />
+                            <h4 style={{ fontFamily: 'monospace', fontSize: '1.1rem', marginBottom: '0.5rem' }}>3. Modeling</h4>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Proprietary algorithms calculate the City Velocity Index and generate predictive compression scores.</p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Built For Decision Makers */}
+                <section style={{ marginBottom: '6rem' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                        <h2 style={{ fontSize: '2.5rem', fontFamily: 'monospace', marginBottom: '1rem' }}>Built For Decision Makers</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Designed for institutional capital, revenue managers, and strategic planners.</p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                        <div style={{ padding: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontFamily: 'monospace', marginBottom: '1rem', color: '#fff' }}>Real Estate Investment Trusts (REITs)</h3>
+                            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                                Anticipate macro-level yield fluctuations across Las Vegas strip portfolios before quarterly earnings calls dictate market sentiment.
+                            </p>
+                        </div>
+                        <div style={{ padding: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontFamily: 'monospace', marginBottom: '1rem', color: '#fff' }}>Revenue Management Teams</h3>
+                            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                                Identify micro-compression events ahead of the competitive set. Optimize ADR and inventory allocations using leading flight-ingress signals.
+                            </p>
+                        </div>
+                        <div style={{ padding: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontFamily: 'monospace', marginBottom: '1rem', color: '#fff' }}>Private Equity & Hospitality Funds</h3>
+                            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                                Underwrite acquisitions and model forecasted demand accurately using untampered, non-survey-based quantitative telemetry.
+                            </p>
+                        </div>
+                        <div style={{ padding: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontFamily: 'monospace', marginBottom: '1rem', color: '#fff' }}>Event Producers & Planners</h3>
+                            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                                Avoid routing massive logistical footprints into peak saturation windows. Identify 'soft' dates for maximum negotiation leverage.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Trust & Transparency */}
+                <section style={{ marginBottom: '6rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    <ShieldCheck size={48} color="var(--text-muted)" style={{ marginBottom: '1.5rem' }} />
+                    <h2 style={{ fontSize: '2.5rem', fontFamily: 'monospace', marginBottom: '1rem' }}>Institutional Trust</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '800px', lineHeight: 1.6, marginBottom: '2rem' }}>
+                        We operate with total transparency. All Macro Demand Reports feature embedded data provenance, highlighting algorithmic confidence intervals, standard errors, and GDS verification timestamps. We believe enterprise tools must withstand rigorous quantitative scrutiny.
+                    </p>
+                    <Link href="/methodology" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                        Read the Methodology Whitepaper <ArrowRight size={16} />
+                    </Link>
+                </section>
+
+                {/* Enterprise CTA */}
+                <section style={{ padding: '4rem', background: 'linear-gradient(135deg, rgba(20,20,25,1) 0%, rgba(0, 242, 254, 0.05) 100%)', borderRadius: '12px', border: '1px solid rgba(0, 242, 254, 0.2)', textAlign: 'center' }}>
+                    <h2 style={{ fontSize: '2.5rem', fontFamily: 'monospace', marginBottom: '1.5rem' }}>Command the Market.</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto 2.5rem auto' }}>
+                        Join the institutional operators, funds, and analysts using LookupVegas to front-run hospitality demand.
+                    </p>
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                        <Link href="/pricing" style={{ padding: '1rem 2rem', background: '#fff', color: '#000', fontWeight: 'bold', borderRadius: '4px', textDecoration: 'none', transition: 'all 0.2s' }}>
+                            View Enterprise Tiers
+                        </Link>
+                        <Link href="/signup" style={{ padding: '1rem 2rem', background: 'transparent', color: '#fff', fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', textDecoration: 'none', transition: 'all 0.2s' }}>
+                            Request API Access
+                        </Link>
+                    </div>
+                </section>
+
+            </div>
         </main>
-    )
+    );
 }

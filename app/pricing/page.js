@@ -4,163 +4,109 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import styles from './Pricing.module.css';
+import RoiCalculator from '../../components/RoiCalculator';
 
 export default function PricingPage() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
-    const [loadingCheckout, setLoadingCheckout] = useState(false);
-    const [loadingPortal, setLoadingPortal] = useState(false);
 
     const handleSubscribe = async () => {
-        if (!user) {
-            router.push('/login');
-            return;
-        }
-
-        setLoadingCheckout(true);
-        try {
-            const res = await fetch('/api/stripe/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    email: user.email,
-                    returnUrl: window.location.origin + '/pricing'
-                })
-            });
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url;
-            }
-        } catch (error) {
-            console.error('Checkout error:', error);
-        } finally {
-            setLoadingCheckout(false);
-        }
+        // Without Stripe IDs, just route to signup
+        router.push('/signup');
     };
-
-    const handleManageSubscription = async () => {
-        setLoadingPortal(true);
-        try {
-            const res = await fetch('/api/stripe/portal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    returnUrl: window.location.origin + '/pricing'
-                })
-            });
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url;
-            }
-        } catch (error) {
-            console.error('Portal error:', error);
-        } finally {
-            setLoadingPortal(false);
-        }
-    };
-
-    const isPremium = userProfile?.tier === 'Intelligence' || userProfile?.tier === 'Enterprise';
 
     return (
         <main className={styles.pricingContainer}>
             <div className={styles.heroSection}>
                 <div className="container">
-                    <h1 className={styles.title}>Pricing & Access Tiers</h1>
-                    <p className={styles.subtitle}>
-                        Structured macro-demand data for hospitality strategists, event planners, and quantitative analysts operating in Las Vegas.
+                    <h1 className={styles.title}>Enterprise Access Tiers</h1>
+                    <p className={styles.subtitle} style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        Predictive macroeconomic data and early demand signals for hospitality strategists, event planners, and real estate funds operating in Las Vegas.
                     </p>
                 </div>
             </div>
 
+            <div className="container" style={{ marginBottom: '4rem' }}>
+                <RoiCalculator />
+            </div>
+
             <div className={`container ${styles.tiersSection}`}>
 
-                {/* 1. Free Tier (Signal) */}
+                {/* 1. Professional Tier */}
                 <div className={styles.pricingCard}>
                     <div className={styles.cardHeader}>
-                        <h2 className={styles.tierName}>Signal</h2>
+                        <h2 className={styles.tierName}>Professional</h2>
                         <div className={styles.priceContainer}>
-                            <span className={styles.price}>$0</span>
+                            <span className={styles.price}>$99</span>
                             <span className={styles.period}>/mo</span>
                         </div>
-                        <p className={styles.tierDesc}>Basic index visibility for casual observation.</p>
+                        <p className={styles.tierDesc}>Basic demand signals for individual analysts and small operators.</p>
                     </div>
                     <div className={styles.cardFeatures}>
                         <ul className={styles.featureList}>
-                            <li>Weekly trend snapshots (72h delayed)</li>
-                            <li>Current City Velocity Index score</li>
-                            <li>Contextual ad-supported environment</li>
+                            <li>30-day forward demand signals</li>
+                            <li>Standard Compression Index score</li>
+                            <li>Weekly trend snapshots</li>
+                            <li>PDF Macro Demand Reports</li>
                         </ul>
                     </div>
                     <div className={styles.cardAction}>
-                        <button className={`${styles.actionBtn} ${styles.btnOutline}`} disabled>
-                            {userProfile?.tier === 'Free' ? 'Current Tier' : 'Included'}
+                        <button className={`${styles.actionBtn} ${styles.btnOutline}`} onClick={handleSubscribe}>
+                            Subscribe
                         </button>
                     </div>
                 </div>
 
-                {/* 2. Premium Tier (Intelligence) */}
+                {/* 2. Operator Tier */}
                 <div className={`${styles.pricingCard} ${styles.highlightCard}`}>
                     <div className={styles.popularBadge}>Most Active</div>
                     <div className={styles.cardHeader}>
-                        <h2 className={styles.tierName}>Intelligence</h2>
+                        <h2 className={styles.tierName}>Operator</h2>
                         <div className={styles.priceContainer}>
-                            <span className={styles.price}>$49</span>
+                            <span className={styles.price}>$299</span>
                             <span className={styles.period}>/mo</span>
                         </div>
-                        <p className={styles.tierDesc}>Real-time movement data and live telemetry.</p>
+                        <p className={styles.tierDesc}>Actionable intelligence for STR owners and boutique hotels.</p>
                     </div>
                     <div className={styles.cardFeatures}>
                         <ul className={styles.featureList}>
+                            <li>90-day forward demand signals</li>
                             <li>Real-time CVI and live deltas</li>
-                            <li>Advanced historical charting access</li>
-                            <li>Event impact modeling & forecasts</li>
-                            <li>Raw data export (CSV)</li>
-                            <li>Weekly "Movement Brief" report</li>
-                            <li>100% Ad-free environment</li>
+                            <li>Event impact modeling forecasts</li>
+                            <li>Daily email alerts for compression events</li>
+                            <li>Historical analogues (1 year)</li>
                         </ul>
                     </div>
                     <div className={styles.cardAction}>
-                        {isPremium ? (
-                            <button 
-                                className={`${styles.actionBtn} ${styles.btnOutline}`} 
-                                onClick={handleManageSubscription}
-                                disabled={loadingPortal}
-                            >
-                                {loadingPortal ? 'Loading...' : 'Manage Subscription'}
-                            </button>
-                        ) : (
-                            <button 
-                                className={`${styles.actionBtn} ${styles.btnPrimary}`} 
-                                onClick={handleSubscribe}
-                                disabled={loadingCheckout}
-                            >
-                                {loadingCheckout ? 'Processing...' : 'Subscribe'}
-                            </button>
-                        )}
+                        <button className={`${styles.actionBtn} ${styles.btnPrimary}`} onClick={handleSubscribe}>
+                            Subscribe
+                        </button>
                     </div>
                 </div>
 
-                {/* 3. Enterprise API Tier (Infrastructure) */}
+                {/* 3. Enterprise Tier */}
                 <div className={styles.pricingCard}>
                     <div className={styles.cardHeader}>
-                        <h2 className={styles.tierName}>Infrastructure</h2>
+                        <h2 className={styles.tierName}>Enterprise</h2>
                         <div className={styles.priceContainer}>
-                            <span className={styles.price}>Custom</span>
+                            <span className={styles.price}>$1,499</span>
+                            <span className={styles.period}>/mo</span>
                         </div>
-                        <p className={styles.tierDesc}>Direct API pipelines for revenue management systems.</p>
+                        <p className={styles.tierDesc}>Full institutional access for REITs, funds, and large aggregators.</p>
                     </div>
                     <div className={styles.cardFeatures}>
                         <ul className={styles.featureList}>
-                            <li>Direct REST API access to CVI data</li>
-                            <li>Live JSON payloads for internal dashboards</li>
-                            <li>Dedicated account manager</li>
-                            <li>Custom usage contracts</li>
+                            <li>365-day forward looking window</li>
+                            <li>Interactive Scenario Modeling tools</li>
+                            <li>Raw data export (CSV / Excel)</li>
+                            <li>5 Years of Historical Telemetry</li>
+                            <li>Direct REST API access (Rate limited)</li>
                         </ul>
                     </div>
                     <div className={styles.cardAction}>
-                        <button className={`${styles.actionBtn} ${styles.btnOutline}`}>Contact Sales</button>
+                        <button className={`${styles.actionBtn} ${styles.btnOutline}`} onClick={handleSubscribe}>
+                            Subscribe
+                        </button>
                     </div>
                 </div>
 
@@ -172,16 +118,16 @@ export default function PricingPage() {
                     <h3 className={styles.faqTitle}>Frequently Asked Questions</h3>
                     <div className={styles.faqGrid}>
                         <div className={styles.faqItem}>
-                            <h4>How current is the Premium data?</h4>
-                            <p>Premium users see live data parsing through our engines immediately. The Free tier is artificially delayed by 72 hours to protect the fidelity of the live signal for paying strategists.</p>
+                            <h4>How current is the data?</h4>
+                            <p>Our telemetry updates with a 15ms latency on our end. New flight and search capacity data is ingested daily to constantly recalibrate the City Compression Index.</p>
                         </div>
                         <div className={styles.faqItem}>
-                            <h4>Can I export the City Velocity Index?</h4>
-                            <p>Yes. The Intelligence tier allows full CSV exports of our indexed data tables, enabling you to overlay our metrics onto your internal revenue or booking curves.</p>
+                            <h4>Can I export the data for my internal models?</h4>
+                            <p>Yes. The Enterprise tier allows full CSV exports of our indexed data tables, enabling you to overlay our metrics onto your internal revenue or booking curves in Excel or Tableau.</p>
                         </div>
                         <div className={styles.faqItem}>
-                            <h4>How are Enterprise API limits structured?</h4>
-                            <p>Enterprise infrastructure plans are negotiated based on your polling frequency requirements. Our internal APIs run on strict caching mechanisms, but we can provision direct high-frequency pipes for hedge funds and large aggregators.</p>
+                            <h4>How are API limits structured?</h4>
+                            <p>Enterprise plans include rate-limited access to the Data API. For unmetered access or direct JSON payloads for high-frequency hedge fund use cases, please contact us for Institutional pricing.</p>
                         </div>
                     </div>
                 </div>

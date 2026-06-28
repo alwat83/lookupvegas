@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './Terminal.module.css';
 
-const FlightMap = dynamic(() => import('../../components/modules/FlightMap'), {
+const AirspaceRadar = dynamic(() => import('../../components/terminal/AirspaceRadar'), {
     ssr: false,
 });
 
@@ -156,8 +156,8 @@ export default function TerminalTabs() {
                         {/* RADAR TABLE */}
                         {activeTab === 'radar' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                                <div style={{ padding: '0 1.5rem', paddingTop: '1.5rem' }}>
-                                    <FlightMap />
+                                <div style={{ padding: '0', paddingTop: '1.5rem' }}>
+                                    <AirspaceRadar />
                                 </div>
                                 <table className={styles.ledgerTable}>
                                     <thead>

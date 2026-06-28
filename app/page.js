@@ -17,6 +17,8 @@ const FlightMap = dynamic(() => import('../components/modules/FlightMap'), {
   ssr: false,
 });
 
+import TrustMetrics from '../components/TrustMetrics';
+
 export default function Home() {
   const { user, loading } = useAuth();
 
@@ -32,6 +34,7 @@ export default function Home() {
   return (
     <main>
       <Hero />
+      <TrustMetrics />
       <DataLayer />
       <CustomerProfiles />
       <IntelligenceEngine />

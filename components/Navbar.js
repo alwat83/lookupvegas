@@ -25,6 +25,8 @@ export default function Navbar() {
                 <div className={styles.navLinks}>
                     {!loading && user ? (
                         <>
+                            <Link href="/about" className={styles.navLink}>About</Link>
+                            <Link href="/methodology" className={styles.navLink}>Methodology</Link>
                             <Link href="/terminal" className={styles.navLink}>Terminal</Link>
                             {userProfile?.tier === 'Enterprise' && (
                                 <Link href="/terminal/api" className={styles.navLink}>API Gateway</Link>
@@ -33,6 +35,7 @@ export default function Navbar() {
                         </>
                     ) : (
                         <>
+                            <Link href="/about" className={styles.navLink}>About</Link>
                             <Link href="/methodology" className={styles.navLink}>Methodology</Link>
                             <Link href="/pricing" className={styles.navLink}>Pricing</Link>
                             <Link href="/login" className={styles.navLink}>Sign In</Link>
