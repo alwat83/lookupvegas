@@ -65,7 +65,7 @@ export default function HistoricalChart() {
                 // Map the /api/historical "velocity" base into the detailed metrics the chart expects
                 // In a production scenario, the DB would return these exact columns.
                 const mappedData = (json.data || []).map(row => {
-                    const baseV = row.velocity; // 1-100 scale
+                    const baseV = parseFloat(row.velocity) || 0; // 1-100 scale, ensure it is a Number
 
                     return {
                         date: row.date,
