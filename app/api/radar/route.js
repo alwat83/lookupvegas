@@ -1,5 +1,6 @@
 import { getOpenSkyToken } from '../../lib/opensky';
 import { getUserProfile } from '../../../lib/authMiddleware';
+import { classifyAircraft } from '../../../lib/flightUtils';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,16 +24,25 @@ export async function GET(req) {
         const data = await response.json();
 
         // ADSB.lol returns { ac: [...] }
-        let activeFlights = (data.ac || []).map(state => ({
-            icao: state.hex,
-            callsign: state.flight ? state.flight.trim() : 'UNKNOWN',
-            country: 'Tracking', // ADSB.lol omits country DB by default
-            longitude: state.lon,
-            latitude: state.lat,
-            altitude: state.alt_baro ? state.alt_baro : 0,
-            velocity: state.gs ? state.gs : 0,
-            heading: state.track || state.dir || 0
-        })).filter(f => f.longitude && f.latitude);
+        let activeFlights = (data.ac || []).map(state => {
+            const callsign = state.flight ? state.flight.trim() : 'UNKNOWN';
+            const type = state.t || '';
+            const registration = state.r || '';
+            
+            return {
+                icao: state.hex,
+                callsign: callsign,
+                type: type,
+                registration: registration,
+                category: classifyAircraft(type, callsign),
+                country: 'Tracking', // ADSB.lol omits country DB by default
+                longitude: state.lon,
+                latitude: state.lat,
+                altitude: state.alt_baro ? state.alt_baro : 0,
+                velocity: state.gs ? state.gs : 0,
+                heading: state.track || state.dir || 0
+            };
+        }).filter(f => f.longitude && f.latitude);
 
         // DELAY LOGIC FOR SIGNAL TIER
         if (!isPremium) {

@@ -13,6 +13,7 @@
     "@deck.gl/layers": "^9.3.3",
     "@deck.gl/react": "^9.3.3",
     "@stripe/stripe-js": "^8.9.0",
+    "@unkey/api": "^2.3.5",
     "@vercel/postgres": "^0.10.0",
     "axios": "^1.13.6",
     "cheerio": "^1.2.0",

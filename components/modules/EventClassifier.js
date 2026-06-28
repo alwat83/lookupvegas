@@ -7,6 +7,7 @@ export default function EventClassifier() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [needsAuth, setNeedsAuth] = useState(false);
+    const [source, setSource] = useState('live');
 
     useEffect(() => {
         async function fetchEvents() {
@@ -16,6 +17,10 @@ export default function EventClassifier() {
                 
                 if (json.requiresAuth) {
                     setNeedsAuth(true);
+                }
+                
+                if (json.source) {
+                    setSource(json.source);
                 }
                 
                 if (json.data) {
@@ -49,7 +54,9 @@ export default function EventClassifier() {
             <div className="card-header">
                 <h3 className="card-title">Event Impact Classifier</h3>
                 {needsAuth ? (
-                    <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--accent-warning)', border: '1px solid rgba(245, 158, 11, 0.2)' }} title="Add SEATGEEK_CLIENT_ID to .env.local">Missing API Key</span>
+                    <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--accent-warning)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>Premium Required</span>
+                ) : source === 'fallback' ? (
+                    <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--accent-warning)', border: '1px solid rgba(245, 158, 11, 0.2)' }} title="Add TICKETMASTER_API_KEY to .env.local">Missing API Key</span>
                 ) : (
                     <span className="badge badge-compression">Live API</span>
                 )}

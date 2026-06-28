@@ -76,6 +76,7 @@
 .legendSection {
     flex: 1.5;
     width: 100%;
+    min-width: 0;
 }
 
 .legendList {
@@ -93,6 +94,7 @@
     align-items: center;
     padding-bottom: 0.75rem;
     border-bottom: 1px dashed var(--border);
+    min-width: 0;
 }
 
 .legendItem:last-child {
@@ -104,6 +106,8 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
 }
 
 .colorDot {
@@ -116,6 +120,9 @@
 .itemName {
     font-size: 0.875rem;
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .itemValue {
@@ -123,6 +130,10 @@
     font-weight: 600;
     font-size: 0.9375rem;
     color: var(--text-primary);
+    flex-shrink: 0;
+    margin-left: 1rem;
+    min-width: 3rem;
+    text-align: right;
 }
 
 /* Tooltip implementation */

@@ -16,7 +16,7 @@ export async function GET(req) {
             });
         }
 
-        const clientId = process.env.SEATGEEK_CLIENT_ID;
+        const apiKey = process.env.TICKETMASTER_API_KEY;
         
         const fallbackData = [
             { id: 'fail-1', name: 'Las Vegas Grand Prix (F1)', date: 'Upcoming Weekend', venue: 'Las Vegas Strip Circuit', impact: 'Tier 1: High Impact', impactScore: 98 },
@@ -29,7 +29,7 @@ export async function GET(req) {
         // Sort fallback data by highest impact
         fallbackData.sort((a, b) => b.impactScore - a.impactScore);
 
-        if (!clientId) {
+        if (!apiKey) {
             return Response.json({
                 data: fallbackData.slice(0, 5),
                 requiresAuth: false,
@@ -37,44 +37,36 @@ export async function GET(req) {
             });
         }
 
-        // Fetch from SeatGeek
-        // Get events in Las Vegas from today onwards, sorted by SeatGeek's popularity score
-        const today = new Date().toISOString().split('T')[0];
-        const url = `https://api.seatgeek.com/2/events?venue.city=las%20vegas&datetime_utc.gte=${today}&sort=score.desc&per_page=10&client_id=${clientId}`;
+        // Fetch from Ticketmaster
+        const now = new Date().toISOString().split('.')[0] + "Z";
+        const url = `https://app.ticketmaster.com/discovery/v2/events.json?city=Las%20Vegas&apikey=${apiKey}&size=5&sort=date,asc&startDateTime=${now}`;
         
         const response = await fetch(url, {
             next: { revalidate: 3600 } // Cache for 1 hour
         });
 
         if (!response.ok) {
-            throw new Error(`SeatGeek API error: ${response.status}`);
+            throw new Error(`Ticketmaster API error: ${response.status}`);
         }
 
         const json = await response.json();
         
-        if (!json.events || json.events.length === 0) {
-            throw new Error("No events found from SeatGeek");
+        if (!json._embedded || !json._embedded.events || json._embedded.events.length === 0) {
+            throw new Error("No events found from Ticketmaster");
         }
 
-        const events = json.events.map(event => {
-            // SeatGeek score is between 0.0 and 1.0 (sometimes higher if trending, but typically 0-1)
-            let rawScore = event.score || 0;
-            let impactScore = Math.min(100, Math.round(rawScore * 100));
+        const events = json._embedded.events.map((event, index) => {
+            let impactScore = 95 - (index * 10);
             
-            // Boost scores slightly for Vegas scale
-            if (impactScore > 0) {
-                impactScore = Math.min(100, impactScore + 15);
-            }
-
             let impactTier = 'Tier 3: Baseline';
             if (impactScore >= 80) impactTier = 'Tier 1: High Impact';
             else if (impactScore >= 50) impactTier = 'Tier 2: Med Impact';
 
             return {
-                id: `sg-${event.id}`,
-                name: event.short_title || event.title,
-                date: event.datetime_local,
-                venue: event.venue?.name || 'Las Vegas',
+                id: `tm-${event.id}`,
+                name: event.name,
+                date: event.dates?.start?.localDate || 'Upcoming',
+                venue: event._embedded?.venues?.[0]?.name || 'Las Vegas',
                 impact: impactTier,
                 impactScore: impactScore
             };
@@ -89,7 +81,7 @@ export async function GET(req) {
         return Response.json({
             data: finalEvents,
             requiresAuth: false,
-            source: 'seatgeek'
+            source: 'ticketmaster'
         });
 
     } catch (error) {

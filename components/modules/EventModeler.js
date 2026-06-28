@@ -137,7 +137,7 @@ export default function EventModeler() {
 
                     <div className={styles.modelerFooter}>
                         <span className={styles.footerNote}>* Events are programmatically scraped via Ticketmaster Discovery API.</span>
-                        <button className={styles.integrationBtn}>Configure Integrations →</button>
+                        <button className={styles.integrationBtn} onClick={() => router.push('/integrations')}>Configure Integrations →</button>
                     </div>
                 </>
             )}

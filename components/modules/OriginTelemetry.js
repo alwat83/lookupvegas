@@ -89,7 +89,7 @@ export default function OriginTelemetry() {
         <div className={styles.moduleCard}>
             <div className={styles.cardHeader}>
                 <h3 className={styles.cardTitle}>Origin Sector Telemetry</h3>
-                <p className={styles.cardSubtitle}>Geographical breakdown of inbound fuselage volume (24H trailing).</p>
+                <p className={styles.cardSubtitle}>Geographical breakdown of inbound fuselage volume (Live Airspace).</p>
             </div>
 
             {loading ? (

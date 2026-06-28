@@ -26,8 +26,8 @@ export default function Navbar() {
                     {!loading && user ? (
                         <>
                             <Link href="/terminal" className={styles.navLink}>Terminal</Link>
-                            {userProfile?.tier === 'enterprise' && (
-                                <Link href="/api" className={styles.navLink}>API Gateway</Link>
+                            {userProfile?.tier === 'Enterprise' && (
+                                <Link href="/terminal/api" className={styles.navLink}>API Gateway</Link>
                             )}
                             <button onClick={handleLogout} className={styles.navCta} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '1rem', padding: '0.4rem 1rem', fontSize: '0.85rem' }}>LOGOUT</button>
                         </>

@@ -22,7 +22,9 @@ export default function TerminalTabs() {
     const [error, setError] = useState(null);
     const [isDelayed, setIsDelayed] = useState(false); // UI indicator for 72h delay
 
-    const fetchData = async (endpoint, setter) => {
+    const [arrivalsMetrics, setArrivalsMetrics] = useState(null);
+
+    const fetchData = async (endpoint, setter, metricsSetter = null) => {
         setLoading(true);
         setError(null);
         try {
@@ -38,6 +40,9 @@ export default function TerminalTabs() {
             
             setter(result.data || []);
             setIsDelayed(result.delayed || false);
+            if (metricsSetter && result.metrics) {
+                metricsSetter(result.metrics);
+            }
         } catch (err) {
             setError("Pipeline interruption. Retrying...");
         } finally {
@@ -48,7 +53,7 @@ export default function TerminalTabs() {
     // Initial Load & Tab Switching
     useEffect(() => {
         if (activeTab === 'radar') fetchData('/api/radar', setRadarData);
-        if (activeTab === 'arrivals') fetchData('/api/flights/arrivals', setArrivalsData);
+        if (activeTab === 'arrivals') fetchData('/api/flights/arrivals', setArrivalsData, setArrivalsMetrics);
         if (activeTab === 'departures') fetchData('/api/flights/departures', setDeparturesData);
     }, [activeTab, user]);
 
@@ -131,6 +136,23 @@ export default function TerminalTabs() {
                                 <strong>Signal Tier:</strong> Viewing 72-hour delayed data. Upgrade to Intelligence for real-time telemetry.
                             </div>
                         )}
+                        {/* INTELLIGENCE DASHBOARD */}
+                        {arrivalsMetrics && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                                <div className="card glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Est. Inbound Passengers</span>
+                                    <span className="glow-text" style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--accent-growth)' }}>
+                                        {arrivalsMetrics.totalEstimatedPassengers.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="card glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>VIP Jets Airborne</span>
+                                    <span className="glow-text" style={{ fontSize: '1.5rem', fontWeight: 600, color: '#eab308' }}>
+                                        {arrivalsMetrics.totalPrivateJets.toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         {/* RADAR TABLE */}
                         {activeTab === 'radar' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -141,6 +163,7 @@ export default function TerminalTabs() {
                                     <thead>
                                         <tr>
                                             <th>Callsign</th>
+                                            <th>Category</th>
                                             <th>Origin Country</th>
                                             <th>Altitude</th>
                                             <th>Velocity</th>
@@ -152,6 +175,13 @@ export default function TerminalTabs() {
                                         {filteredRadar.map((flight, idx) => (
                                             <tr key={idx}>
                                                 <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{flight.callsign}</td>
+                                                <td>
+                                                    <span style={{
+                                                        padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem',
+                                                        backgroundColor: flight.category === 'Private' ? 'rgba(234, 179, 8, 0.1)' : flight.category === 'Commercial' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
+                                                        color: flight.category === 'Private' ? '#eab308' : flight.category === 'Commercial' ? '#10B981' : 'var(--text-secondary)'
+                                                    }}>{flight.category || 'Other'}</span>
+                                                </td>
                                                 <td>{flight.country}</td>
                                                 <td>{Math.round(flight.altitude || 0).toLocaleString()} ft</td>
                                                 <td>{Math.round(flight.velocity || 0)} kts</td>
@@ -160,7 +190,7 @@ export default function TerminalTabs() {
                                             </tr>
                                         ))}
                                         {filteredRadar.length === 0 && (
-                                            <tr><td colSpan="6" className={styles.emptyState}>No targets matching parameters.</td></tr>
+                                            <tr><td colSpan="7" className={styles.emptyState}>No targets matching parameters.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -173,6 +203,7 @@ export default function TerminalTabs() {
                                 <thead>
                                     <tr>
                                         <th>Callsign</th>
+                                        <th>Category</th>
                                         <th>Origin (ICAO)</th>
                                         <th>Destination</th>
                                         <th>Initial Contact</th>
@@ -184,6 +215,13 @@ export default function TerminalTabs() {
                                     {filteredArrivals.map((flight, idx) => (
                                         <tr key={idx}>
                                             <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{flight.callsign}</td>
+                                            <td>
+                                                <span style={{
+                                                    padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem',
+                                                    backgroundColor: flight.category === 'Private' ? 'rgba(234, 179, 8, 0.1)' : flight.category === 'Commercial' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
+                                                    color: flight.category === 'Private' ? '#eab308' : flight.category === 'Commercial' ? '#10B981' : 'var(--text-secondary)'
+                                                }}>{flight.category || 'Other'}</span>
+                                            </td>
                                             <td>{flight.origin}</td>
                                             <td style={{ color: 'var(--text-secondary)' }}>{flight.destination}</td>
                                             <td>{formatTime(flight.firstSeen)}</td>
@@ -192,7 +230,7 @@ export default function TerminalTabs() {
                                         </tr>
                                     ))}
                                     {filteredArrivals.length === 0 && (
-                                        <tr><td colSpan="6" className={styles.emptyState}>No inbound targets matching parameters.</td></tr>
+                                        <tr><td colSpan="7" className={styles.emptyState}>No inbound targets matching parameters.</td></tr>
                                     )}
                                 </tbody>
                             </table>

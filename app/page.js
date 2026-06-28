@@ -11,6 +11,7 @@ import FeaturesSection from '../components/marketing/FeaturesSection';
 import BlurredGate from '../components/marketing/BlurredGate';
 import VelocityChart from '../components/modules/VelocityChart';
 import dynamic from 'next/dynamic';
+import IntelligencePreview from '../components/modules/IntelligencePreview';
 
 const FlightMap = dynamic(() => import('../components/modules/FlightMap'), {
   ssr: false,
@@ -66,6 +67,9 @@ export default function Home() {
                 <div style={{ flex: 1, height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
                     <div className="card-header" style={{ padding: '1.5rem 1.5rem 0' }}>
                         <h3 className="card-title glow-text">Live Vegas Airspace (3D Radar)</h3>
+                    </div>
+                    <div style={{ padding: '0 1.5rem', marginTop: '1rem' }}>
+                        <IntelligencePreview />
                     </div>
                     <div style={{ flex: 1, minHeight: '600px', pointerEvents: 'none' }}>
                         <FlightMap />

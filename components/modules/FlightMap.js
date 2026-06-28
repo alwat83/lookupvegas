@@ -67,10 +67,15 @@ export default function FlightMap() {
         radiusMaxPixels: 20,
         lineWidthMinPixels: 2,
         getPosition: d => [d.longitude || 0, d.latitude || 0, (d.altitude || 0) * 0.3048], // Altitude in meters
-        getFillColor: [16, 185, 129], // --accent-growth
+        getFillColor: d => {
+            if (d.category === 'Private') return [234, 179, 8]; // Gold
+            if (d.category === 'Commercial') return [16, 185, 129]; // Green
+            return [156, 163, 175]; // Gray for Other
+        },
         getLineColor: [15, 17, 21], // --bg-primary
         updateTriggers: {
-            getPosition: [flights]
+            getPosition: [flights],
+            getFillColor: [flights]
         }
     });
 
@@ -81,22 +86,35 @@ export default function FlightMap() {
         getPosition: d => [d.longitude || 0, d.latitude || 0, ((d.altitude || 0) * 0.3048) + 200], // Slightly above
         getText: d => d.callsign || 'UNK',
         getSize: 12,
-        getColor: [249, 250, 251], // --text-primary
+        getColor: d => {
+            if (d.category === 'Private') return [234, 179, 8];
+            if (d.category === 'Commercial') return [16, 185, 129];
+            return [249, 250, 251]; // White
+        },
         getAngle: 0,
         getTextAnchor: 'start',
         getAlignmentBaseline: 'center',
         pixelOffset: [15, 0],
         background: true,
         getBackgroundColor: [26, 29, 36, 200],
+        updateTriggers: {
+            getColor: [flights]
+        }
     });
 
     // Custom tooltip
     const getTooltip = ({ object }) => {
         if (!object) return null;
+        
+        let colorHex = '#9CA3AF'; // Gray
+        if (object.category === 'Private') colorHex = '#eab308'; // Gold
+        if (object.category === 'Commercial') colorHex = '#10B981'; // Green
+
         return {
             html: `
-            <div style="font-family: monospace; font-size: 12px; background: rgba(15,17,21,0.9); border: 1px solid #262A33; padding: 10px; border-radius: 4px; color: #10B981; backdrop-filter: blur(4px);">
-                <div style="color: #F9FAFB; font-weight: bold; margin-bottom: 4px;">${object.callsign}</div>
+            <div style="font-family: monospace; font-size: 12px; background: rgba(15,17,21,0.9); border: 1px solid #262A33; padding: 10px; border-radius: 4px; color: #F9FAFB; backdrop-filter: blur(4px);">
+                <div style="color: ${colorHex}; font-weight: bold; margin-bottom: 4px;">${object.callsign} <span style="font-size: 0.65rem; padding: 2px 4px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-left: 4px;">${object.category || 'Other'}</span></div>
+                ${object.type || object.registration ? `<div style="color: #9CA3AF; margin-bottom: 4px;">Type: ${object.type || 'UNK'} | Reg: ${object.registration || 'UNK'}</div>` : ''}
                 <div>ALT: ${Math.round(object.altitude).toLocaleString()} ft</div>
                 <div>SPD: ${Math.round(object.velocity)} kts</div>
                 <div>HDG: ${Math.round(object.heading)}°</div>
