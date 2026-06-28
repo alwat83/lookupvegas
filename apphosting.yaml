@@ -12,6 +12,8 @@ env:
 
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyD3j5hjRexrArKTRlF0n7Rij-74P_cLG4A
+  - variable: TICKETMASTER_API_KEY
+    value: 0zD76zQzkzntQ1ckJp9SAigfDwGglZSw
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
     value: lookupvegas-337b3.firebaseapp.com
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
