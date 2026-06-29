@@ -9,6 +9,7 @@ import EventCalendar from './EventCalendar';
 import DriverPanel from './DriverPanel';
 import HotelPanel from './HotelPanel';
 import LocalBizPanel from './LocalBizPanel';
+import HistoricalEcho from './HistoricalEcho';
 
 const FlightMap = dynamic(() => import('../modules/FlightMap'), {
   ssr: false,
@@ -88,6 +89,7 @@ export default function DashboardGrid() {
 
       {/* Full width forecast at the bottom */}
       <div className="grid-full">
+        <HistoricalEcho />
         <ForecastModule />
       </div>
 
