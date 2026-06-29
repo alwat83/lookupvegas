@@ -32,7 +32,7 @@ export default function ArrivalsDashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Today</span>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-primary)', lineHeight: '1' }}>142,500</span>
-          <span style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: 'bold' }}>↑ 12% YoY</span>
+          <span style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: 'bold' }}>+ 12% YoY</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -44,7 +44,7 @@ export default function ArrivalsDashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Next 24 Hours</span>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-primary)', lineHeight: '1' }}>31,820</span>
-          <span style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: 'bold' }}>↑ 4% vs Yday</span>
+          <span style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: 'bold' }}>+ 4% vs Yday</span>
         </div>
 
       </div>
