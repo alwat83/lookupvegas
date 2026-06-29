@@ -28,15 +28,21 @@ export default function DashboardGrid() {
         }
         .grid-radar {
           grid-column: span 12;
+          min-width: 0;
+          min-height: 0;
         }
         .grid-side {
           grid-column: span 12;
           display: flex;
           flex-direction: column;
           gap: 2rem;
+          min-width: 0;
+          min-height: 0;
         }
         .grid-full {
           grid-column: span 12;
+          min-width: 0;
+          min-height: 0;
         }
         
         @media (min-width: 1024px) {

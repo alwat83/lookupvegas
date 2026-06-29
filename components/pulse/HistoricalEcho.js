@@ -52,9 +52,9 @@ export default function HistoricalEcho() {
         </div>
       </div>
 
-      <div style={{ height: '300px', width: '100%' }}>
+      <div style={{ height: '300px', width: '100%', minWidth: 0, minHeight: 0 }}>
         {mounted ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
