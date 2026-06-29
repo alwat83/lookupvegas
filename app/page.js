@@ -39,10 +39,38 @@ export default function Home() {
         <AiStory />
 
         {/* Dashboard Grid */}
-        <div className="grid grid-cols-12" style={{ gap: '2rem' }}>
-          
+        <div className="dashboard-grid">
+          <style dangerouslySetInnerHTML={{__html: `
+            .dashboard-grid {
+              display: grid;
+              grid-template-columns: repeat(12, minmax(0, 1fr));
+              gap: 2rem;
+            }
+            .grid-radar {
+              grid-column: span 12;
+            }
+            .grid-side {
+              grid-column: span 12;
+              display: flex;
+              flex-direction: column;
+              gap: 2rem;
+            }
+            .grid-full {
+              grid-column: span 12;
+            }
+            
+            @media (min-width: 1024px) {
+              .grid-radar {
+                grid-column: span 8;
+              }
+              .grid-side {
+                grid-column: span 4;
+              }
+            }
+          `}} />
+
           {/* Main Airspace Radar (Takes up 12 cols on mobile, 8 on desktop) */}
-          <div className="card glass-panel col-span-12 lg:col-span-8" style={{ padding: 0, overflow: 'hidden', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
+          <div className="card glass-panel grid-radar" style={{ padding: 0, overflow: 'hidden', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
             <div className="card-header" style={{ padding: '1.5rem 1.5rem 0' }}>
               <h3 className="card-title glow-text" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span className="live-indicator"></span> Live Vegas Airspace (3D Radar)
@@ -57,13 +85,13 @@ export default function Home() {
           </div>
 
           {/* Side panel for markets & calendar */}
-          <div className="col-span-12 lg:col-span-4" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div className="grid-side">
             <OriginMarkets />
             <EventCalendar />
           </div>
 
           {/* Full width forecast at the bottom */}
-          <div className="col-span-12">
+          <div className="grid-full">
             <ForecastModule />
           </div>
 
