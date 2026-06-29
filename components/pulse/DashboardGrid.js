@@ -11,6 +11,13 @@ import HotelPanel from './HotelPanel';
 import LocalBizPanel from './LocalBizPanel';
 import HistoricalEcho from './HistoricalEcho';
 
+// Phase 4 New Widgets
+import ArrivalsDashboard from './ArrivalsDashboard';
+import EconomicConditions from './EconomicConditions';
+import WinnersWidget from './WinnersWidget';
+import RiskRadar from './RiskRadar';
+import DayTimeline from './DayTimeline';
+
 const FlightMap = dynamic(() => import('../modules/FlightMap'), {
   ssr: false,
 });
@@ -44,13 +51,21 @@ export default function DashboardGrid() {
           min-width: 0;
           min-height: 0;
         }
+        .grid-half {
+          grid-column: span 12;
+          min-width: 0;
+          min-height: 0;
+        }
         
         @media (min-width: 1024px) {
           .grid-radar {
-            grid-column: span 8;
+            grid-column: span 7;
           }
           .grid-side {
-            grid-column: span 4;
+            grid-column: span 5;
+          }
+          .grid-half {
+            grid-column: span 6;
           }
         }
       `}} />
@@ -72,8 +87,15 @@ export default function DashboardGrid() {
         </div>
       )}
 
-      {/* Main Airspace Radar (Takes up 12 cols on mobile, 8 on desktop) */}
-      <div className="card glass-panel grid-radar" style={{ padding: 0, overflow: 'hidden', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
+      {/* --- ZONE 2: THE HEARTBEAT --- */}
+      {/* Side panel for Arrivals (Huge focal point) */}
+      <div className="grid-side">
+        <ArrivalsDashboard />
+        <OriginMarkets />
+      </div>
+
+      {/* Main Airspace Radar (Takes up 12 cols on mobile, 7 on desktop) */}
+      <div className="card glass-panel grid-radar" style={{ padding: 0, overflow: 'hidden', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
         <div className="card-header" style={{ padding: '1.5rem 1.5rem 0' }}>
           <h3 className="card-title glow-text" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span className="live-indicator"></span> Live Vegas Airspace (3D Radar)
@@ -87,14 +109,25 @@ export default function DashboardGrid() {
         </div>
       </div>
 
-      {/* Side panel for markets & calendar */}
+      {/* --- ZONE 3: THE BREAKDOWN --- */}
+      <div className="grid-full">
+        <DayTimeline />
+      </div>
+
       <div className="grid-side">
-        <OriginMarkets />
+        <EconomicConditions />
         <EventCalendar />
       </div>
 
-      {/* Full width forecast at the bottom */}
-      <div className="grid-full">
+      <div className="grid-radar">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+          <WinnersWidget />
+          <RiskRadar />
+        </div>
+      </div>
+
+      {/* Deep Forecast */}
+      <div className="grid-full" style={{ marginTop: '2rem' }}>
         <HistoricalEcho />
         <ForecastModule />
       </div>

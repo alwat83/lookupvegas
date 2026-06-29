@@ -174,6 +174,51 @@ export default function FlightMap() {
                     {showLabels ? 'HIDE LABELS' : 'SHOW LABELS'}
                 </button>
             </div>
+
+            {/* Demand Shock Alert Overlay */}
+            <div style={{
+                position: 'absolute',
+                top: '1rem',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 1000,
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.5)',
+                backdropFilter: 'blur(12px)',
+                borderRadius: '8px',
+                padding: '1rem 1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                boxShadow: '0 4px 20px rgba(239, 68, 68, 0.3)',
+                animation: 'pulseShock 3s infinite'
+            }}>
+                <style dangerouslySetInnerHTML={{__html: `
+                    @keyframes pulseShock {
+                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+                        70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                    }
+                `}} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ color: '#ef4444', fontSize: '1.25rem' }}>⚠️</span>
+                    <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '1.125rem', letterSpacing: '0.5px' }}>DEMAND SHOCK DETECTED</span>
+                </div>
+                <div style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    +1,842 passengers in 45 minutes
+                </div>
+                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>ADR Impact</span>
+                        <span style={{ color: '#10b981', fontWeight: 'bold' }}>+4.2%</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Compression Index</span>
+                        <span style={{ color: '#ef4444', fontWeight: 'bold' }}>91</span>
+                    </div>
+                </div>
+            </div>
+
         </div>
     );
 }
