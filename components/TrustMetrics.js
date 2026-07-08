@@ -1,38 +1,51 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
 export default function TrustMetrics() {
+    const [snap, setSnap] = useState(null);
+
+    useEffect(() => {
+        fetch('/api/aviation/snapshot').then(r => r.json()).then(d => {
+            if(d.currentSnapshot) setSnap(d.currentSnapshot);
+        }).catch(e => console.error(e));
+    }, []);
+
+    const totalActive = snap ? snap.inboundFlights + snap.outboundFlights : '--';
+    const arrRate = snap ? snap.arrivalRatePerHour : '--';
+    const dailyPax = snap ? snap.estimatedDailyPax.toLocaleString() : '--';
+
     return (
         <section style={{ padding: '6rem 2rem', background: '#0a0a0c', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
                 <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', fontFamily: 'monospace' }}>INSTITUTIONAL TRUST ENGINE</h2>
+                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', fontFamily: 'monospace' }}>REAL-TIME INTELLIGENCE METRICS</h2>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
-                        Built on an immutable foundation of raw telemetry. Our compression algorithms process millions of forward-looking signals daily to ensure you never miss a market movement.
+                        Built on an immutable foundation of raw telemetry. Our data is sourced directly from live ADS-B tracking, ensuring you never miss a market movement.
                     </p>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
                     <motion.div initial={{opacity: 0, y: 20}} whileInView={{opacity: 1, y: 0}} viewport={{once: true}} style={{ textAlign: 'center', padding: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#fff', lineHeight: 1 }}>2.4M<span style={{color: 'var(--primary-color)'}}>+</span></div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Flight Movements Analyzed Daily</div>
+                        <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#fff', lineHeight: 1 }}>{totalActive}</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Flights Tracked</div>
                     </motion.div>
 
                     <motion.div initial={{opacity: 0, y: 20}} whileInView={{opacity: 1, y: 0}} viewport={{once: true}} transition={{delay: 0.1}} style={{ textAlign: 'center', padding: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#fff', lineHeight: 1 }}>5<span style={{fontSize: '2rem', color: 'var(--text-secondary)'}}>YRS</span></div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historical Telemetry Base</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historical Data Depth</div>
                     </motion.div>
 
                     <motion.div initial={{opacity: 0, y: 20}} whileInView={{opacity: 1, y: 0}} viewport={{once: true}} transition={{delay: 0.2}} style={{ textAlign: 'center', padding: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#fff', lineHeight: 1 }}>15<span style={{fontSize: '2rem', color: 'var(--text-secondary)'}}>ms</span></div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Query Resolution Time</div>
+                        <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#fff', lineHeight: 1 }}>{arrRate}</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Arrivals Per Hour</div>
                     </motion.div>
 
                     <motion.div initial={{opacity: 0, y: 20}} whileInView={{opacity: 1, y: 0}} viewport={{once: true}} transition={{delay: 0.3}} style={{ textAlign: 'center', padding: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)', boxShadow: '0 0 20px rgba(16, 185, 129, 0.1)' }}>
-                        <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--accent-growth)', lineHeight: 1 }}>94.2<span style={{fontSize: '2rem'}}>%</span></div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verified Forecast Confidence</div>
+                        <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--accent-growth)', lineHeight: 1 }}>{dailyPax}</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Est. Daily Passengers</div>
                     </motion.div>
                 </div>
 

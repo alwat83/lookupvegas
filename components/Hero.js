@@ -144,25 +144,64 @@ function ForwardDemandQuery() {
 }
 
 function IntelligenceWidgetsPreview() {
+    const [snap, setSnap] = useState(null);
+    useEffect(() => {
+        fetch('/api/aviation/snapshot').then(r => r.json()).then(d => {
+            if(d.currentSnapshot) setSnap(d.currentSnapshot);
+        }).catch(e => console.error(e));
+    }, []);
+
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '3rem', maxWidth: '800px' }}>
             <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} transition={{delay: 0.2}} style={{ background: 'rgba(20, 20, 25, 0.6)', padding: '1.25rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Live City Compression</div>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ff3b30' }}>88<span style={{fontSize: '1rem', color: 'var(--text-muted)'}}>/100</span></div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>Critical Levels Reached</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Live Inbound Flights</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ff3b30' }}>{snap ? snap.inboundFlights : '--'}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>📡 Live ADS-B</div>
             </motion.div>
             
             <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} transition={{delay: 0.3}} style={{ background: 'rgba(20, 20, 25, 0.6)', padding: '1.25rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Flight Capacity Delta</div>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-growth)' }}>+14.2%</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>30-Day Forward vs Hist</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Est. Arriving Passengers</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-growth)' }}>{snap ? snap.estimatedArrivingPax.toLocaleString() : '--'}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>📊 Estimated</div>
             </motion.div>
 
             <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} transition={{delay: 0.4}} style={{ background: 'rgba(20, 20, 25, 0.6)', padding: '1.25rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Event Impact Multiplier</div>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>3.4x</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>ADR Premium Est.</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Private Jet Index</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{snap ? `${snap.privateJetIndex.toFixed(1)}x` : '--'}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>📡 Live ADS-B</div>
             </motion.div>
+        </div>
+    );
+}
+
+function LiveTicker() {
+    const [snap, setSnap] = useState(null);
+    const [weather, setWeather] = useState(null);
+
+    useEffect(() => {
+        fetch('/api/aviation/snapshot').then(r => r.json()).then(d => {
+            if(d.currentSnapshot) setSnap(d.currentSnapshot);
+            if(d.weather) setWeather(d.weather);
+        }).catch(e => console.error(e));
+    }, []);
+
+    if (!snap) {
+        return <div style={{ display: 'flex', whiteSpace: 'nowrap', animation: 'marquee 20s linear infinite', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}><style>{`@keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`}</style><span style={{marginRight: '3rem'}}>LOADING TELEMETRY...</span></div>;
+    }
+
+    return (
+        <div style={{ display: 'flex', whiteSpace: 'nowrap', animation: 'marquee 20s linear infinite', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <style>{`
+                @keyframes marquee {
+                    0% { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                }
+            `}</style>
+            <span style={{ marginRight: '3rem' }}><span style={{ color: 'var(--accent-growth)'}}>▲ INBOUND NOW: {snap.inboundFlights}</span></span>
+            <span style={{ marginRight: '3rem' }}>EST. PAX ARRIVING: {snap.estimatedArrivingPax.toLocaleString()}</span>
+            <span style={{ marginRight: '3rem' }}><span style={{ color: '#ff3b30'}}>▼ DEMAND: {snap.demandPressure}</span></span>
+            <span style={{ marginRight: '3rem' }}>WEATHER: {weather ? `${weather.temp}°F ${weather.conditions}` : 'N/A'}</span>
+            <span style={{ marginRight: '3rem' }}>NET FLOW: {snap.netFlow.direction}</span>
         </div>
     );
 }
@@ -223,19 +262,7 @@ export default function Hero() {
             
             {/* Ticker at the bottom of hero */}
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#000', borderTop: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem 0', overflow: 'hidden' }}>
-               <div style={{ display: 'flex', whiteSpace: 'nowrap', animation: 'marquee 20s linear infinite', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                 <style>{`
-                   @keyframes marquee {
-                     0% { transform: translateX(100%); }
-                     100% { transform: translateX(-100%); }
-                   }
-                 `}</style>
-                 <span style={{ marginRight: '3rem' }}><span style={{ color: 'var(--accent-growth)'}}>▲ LAS INBOUND (7D): +4.2%</span></span>
-                 <span style={{ marginRight: '3rem' }}>STR ADR (30D FWD): $245</span>
-                 <span style={{ marginRight: '3rem' }}><span style={{ color: '#ff3b30'}}>▼ COMPRESSION INDEX: 88 (CRITICAL)</span></span>
-                 <span style={{ marginRight: '3rem' }}>JFK&gt;LAS CAPACITY: +12%</span>
-                 <span style={{ marginRight: '3rem' }}>EVENT: AWS RE:INVENT (+340% IMPACT)</span>
-               </div>
+               <LiveTicker />
             </div>
         </section>
     );

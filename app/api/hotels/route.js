@@ -5,17 +5,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
-        const checkIn = searchParams.get('checkIn');
+        const checkIn = searchParams.get('checkIn') || new Date().toISOString().split('T')[0];
         const checkOut = searchParams.get('checkOut');
 
-        if (!checkIn || !checkOut) {
-            return Response.json({ error: "Missing checkIn or checkOut parameters" }, { status: 400 });
-        }
+        let eventsText = [];
+        let numEvents = 0;
+        let hasMassiveEvent = false;
 
-        // We fetch public event data to determine how busy the city is.
-        // This is a proxy for "Compression" without needing a $1000/mo GDS Hotel API.
-        
-        let events = [];
+        // 1. Scrape lasvegasweekly
         try {
             const response = await fetch('https://lasvegasweekly.com/events/', {
                 headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -25,49 +22,84 @@ export async function GET(request) {
                 const html = await response.text();
                 const $ = cheerio.load(html);
                 $('.event-item, .list-item, article.event').slice(0, 10).each((i, el) => {
-                    events.push($(el).text().toLowerCase());
+                    eventsText.push($(el).text().toLowerCase());
+                    numEvents++;
                 });
             }
         } catch (e) {
-            console.warn("Could not scrape events for compression metric", e);
+            console.warn("Could not scrape events", e);
         }
 
-        let compressionScore = 50; // Neutral baseline
-        let averagePrice = 189; // Baseline Vegas strip weekend rate
+        // 2. Ticketmaster API
+        if (process.env.TICKETMASTER_API_KEY) {
+            try {
+                let tmUrl = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${process.env.TICKETMASTER_API_KEY}&city=Las Vegas&size=20`;
+                if (checkIn) tmUrl += `&startDateTime=${checkIn}T00:00:00Z`;
+                if (checkOut) tmUrl += `&endDateTime=${checkOut}T23:59:59Z`;
 
-        const eventText = events.join(" ");
-        
-        // Massive Tier 1 Events
-        if (eventText.includes('f1') || eventText.includes('grand prix') || eventText.includes('ces') || eventText.includes('super bowl')) {
-            compressionScore = 98;
-            averagePrice = 950;
-        } 
-        // Tier 2 Events
-        else if (eventText.includes('stadium') || eventText.includes('raiders') || eventText.includes('festival') || eventText.includes('sphere')) {
-            compressionScore = 78;
-            averagePrice = 425;
+                const tmRes = await fetch(tmUrl);
+                if (tmRes.ok) {
+                    const tmData = await tmRes.json();
+                    if (tmData._embedded && tmData._embedded.events) {
+                        numEvents += tmData._embedded.events.length;
+                        tmData._embedded.events.forEach(e => {
+                            eventsText.push(e.name.toLowerCase());
+                            const venue = e._embedded?.venues?.[0]?.name?.toLowerCase() || '';
+                            eventsText.push(venue);
+                            if (venue.includes('stadium') || venue.includes('sphere') || venue.includes('colosseum')) {
+                                hasMassiveEvent = true;
+                            }
+                        });
+                    }
+                }
+            } catch(e) {
+                console.warn("Ticketmaster API failed", e);
+            }
         }
-        // Tier 3 Events
-        else if (events.length > 5) {
-            compressionScore = 65;
-            averagePrice = 250;
+
+        const combinedText = eventsText.join(" ");
+
+        let compressionScore = 40; // Base
+        compressionScore += Math.min(30, numEvents * 2); // +2 per event up to 30
+
+        if (hasMassiveEvent) {
+            compressionScore += 15;
         }
+
+        const checkInDate = new Date(checkIn);
+        const dayOfWeek = checkInDate.getDay(); // 0 is Sun, 5 is Fri, 6 is Sat
+        if (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) {
+            compressionScore += 10;
+        }
+
+        const tier1Keywords = ['f1', 'ces', 'super bowl', 'grand prix'];
+        tier1Keywords.forEach(kw => {
+            if (combinedText.includes(kw)) compressionScore += 5;
+        });
+
+        const tier2Keywords = ['stadium', 'raiders', 'festival', 'sphere', 'nfl'];
+        tier2Keywords.forEach(kw => {
+            if (combinedText.includes(kw)) compressionScore += 3;
+        });
+
+        compressionScore = Math.min(100, compressionScore);
+
+        // Average price: 189 + (compressionScore - 40) * 8
+        const averagePrice = 189 + (compressionScore - 40) * 8;
 
         let status = "Neutral Growth";
         if (compressionScore > 85) status = "Peak Saturation / Sold Out";
         else if (compressionScore > 60) status = "High Compression";
         else if (compressionScore < 30) status = "Contraction";
 
-        // Add some random noise so it looks "live" on repeated loads
-        const noise = Math.floor(Math.random() * 5);
-        
         return Response.json({
             data: {
-                averagePrice: averagePrice + noise,
-                compressionScore: Math.min(100, compressionScore + Math.floor(noise/2)),
+                averagePrice,
+                compressionScore,
                 status
             },
-            source: 'event-heuristic'
+            source: 'event-heuristic-v2',
+            methodology: 'Compression score derived from Ticketmaster event density + weekly event listings'
         });
 
     } catch (error) {
