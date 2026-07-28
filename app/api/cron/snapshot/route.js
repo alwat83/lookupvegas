@@ -1,8 +1,14 @@
 import { db } from '../../../../lib/firebaseAdmin';
 import { logEvent } from '../../../../lib/structuredLog';
-import { businessDateString } from '../../../../lib/businessDate';
+import { businessDateString, previousBusinessDateString, isValidBusinessDateString } from '../../../../lib/businessDate';
 
-const CVI_VERSION = 'v1';
+const CVI_VERSION = 'v1'; // The weighting formula itself -- unchanged by LV-004.
+const SCHEMA_VERSION = 'v2'; // The document *shape* -- bumped because flight_score,
+// weather_score, and private_jet_index_normalized are now persisted (see below).
+// Tracked separately from CVI_VERSION on purpose: a document's schema can
+// change (new fields recorded) without the underlying calculation changing,
+// and vice versa -- conflating the two would make it impossible to tell
+// which kind of change actually happened to a given historical record.
 
 export async function GET(request) {
     const startedAt = Date.now();
@@ -27,15 +33,40 @@ export async function GET(request) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const snapshotDate = businessDateString();
+    const url = new URL(request.url);
+    const origin = url.origin;
+    const todayDate = businessDateString();
+    const requestedDate = url.searchParams.get('date');
+    const force = url.searchParams.get('force') === 'true';
+
+    // Backfill: an operator can target a specific past business date rather
+    // than always "today." This does NOT re-fetch true historical
+    // conditions for that date -- the upstream APIs below only ever serve
+    // current data, so a backfilled record's source_freshness values
+    // reflect conditions at run time, not the labeled date. See the
+    // `backfilled` flag on the persisted record and docs/LV-004 for the
+    // full reproducibility analysis. Never allowed to target the future.
+    if (requestedDate !== null) {
+        if (!isValidBusinessDateString(requestedDate)) {
+            return Response.json({ error: 'date must be a valid YYYY-MM-DD calendar date' }, { status: 400 });
+        }
+        if (requestedDate > todayDate) {
+            return Response.json({ error: 'date cannot be in the future' }, { status: 400 });
+        }
+    }
+
+    const snapshotDate = requestedDate ?? todayDate;
+    const isBackfill = snapshotDate !== todayDate;
     const docRef = db.collection('daily_metrics').doc(snapshotDate);
 
     // Idempotency: a duplicate scheduler delivery (or a manual re-trigger)
     // for a date that already completed successfully is a no-op, not a
-    // recompute. This is what actually prevents duplicate delivery from
-    // producing a different value for the same business day -- the
-    // deterministic doc ID alone only prevents a second *document*, not a
-    // second, possibly-different, overwrite.
+    // recompute, UNLESS force=true is explicitly supplied. This is what
+    // actually prevents duplicate delivery -- or an accidental backfill
+    // request -- from silently producing a different value for a business
+    // day that already has a trusted record. The deterministic doc ID
+    // alone only prevents a second *document*, not a second, possibly
+    // different, overwrite.
     let existingDoc;
     try {
         existingDoc = await docRef.get();
@@ -53,7 +84,7 @@ export async function GET(request) {
         return Response.json({ error: 'Failed to check snapshot state' }, { status: 500 });
     }
 
-    if (existingDoc.exists && existingDoc.data().status === 'success') {
+    if (existingDoc.exists && existingDoc.data().status === 'success' && !force) {
         logEvent({
             severity: 'INFO',
             event: 'snapshot_duplicate_skipped',
@@ -69,8 +100,16 @@ export async function GET(request) {
         }, { status: 200 });
     }
 
-    const url = new URL(request.url);
-    const origin = url.origin;
+    if (existingDoc.exists && existingDoc.data().status === 'success' && force) {
+        logEvent({
+            severity: 'WARNING',
+            event: 'snapshot_forced_overwrite',
+            message: 'Overwriting a previously successful record because force=true was explicitly supplied.',
+            snapshotDate,
+            status: 'success',
+        });
+    }
+
     const sourceFreshness = {};
     const errors = [];
 
@@ -136,7 +175,17 @@ export async function GET(request) {
         if (hRes.ok) {
             const hData = await hRes.json();
             eventImpact = hData.data.compressionScore || 50.0;
-            sourceFreshness.hotels = 'ok';
+            // The hotels endpoint returns HTTP 200 even when it has
+            // internally failed and substituted its own hardcoded fallback
+            // values -- it already tells the truth via `source: 'fallback'`
+            // in that case, but this was never checked, so a hotels-side
+            // failure was previously invisible here and recorded as 'ok'.
+            if (hData.source === 'fallback') {
+                sourceFreshness.hotels = 'fallback';
+                errors.push('hotels endpoint returned its internal fallback value (its own upstream sources failed)');
+            } else {
+                sourceFreshness.hotels = 'ok';
+            }
         } else {
             sourceFreshness.hotels = 'fallback';
             errors.push(`hotels endpoint returned ${hRes.status}`);
@@ -195,13 +244,27 @@ export async function GET(request) {
     let demandMomentum = 50;
 
     try {
-        const snapshot = await db.collection('daily_metrics').orderBy('date', 'desc').limit(30).get();
+        // Filtered to dates strictly before the one being computed -- not
+        // just "the most recent 30 regardless of target." For a normal
+        // same-day run this is equivalent (today's own document doesn't
+        // exist yet). For a backfilled historical date, this is the
+        // difference between a rolling window that's causally correct
+        // (only days before the target) and one that would silently pull
+        // in days *after* it, which is wrong for a historical record no
+        // matter how the CVI formula itself is weighted.
+        const snapshot = await db.collection('daily_metrics')
+            .where('date', '<', snapshotDate)
+            .orderBy('date', 'desc')
+            .limit(30)
+            .get();
         const docs = snapshot.docs.map(d => d.data());
 
-        // Missing/failed-snapshot detection: surface a gap in yesterday's
-        // record the moment we're already looking at this collection,
-        // rather than adding a second query just to check.
-        const yesterdayDate = businessDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+        // Missing/failed-snapshot detection: surface a gap in the prior
+        // day's record the moment we're already looking at this
+        // collection, rather than adding a second query just to check.
+        // Computed relative to snapshotDate, not real-world "now" -- so
+        // this is meaningful during a backfill too, not just a live run.
+        const yesterdayDate = previousBusinessDateString(snapshotDate);
         const yesterdayDoc = docs.find(d => d.date === yesterdayDate);
         if (!yesterdayDoc || yesterdayDoc.status === 'failed') {
             logEvent({
@@ -310,10 +373,26 @@ export async function GET(request) {
         event_impact_score: eventImpact,
         timestamp: new Date().toISOString(),
         cvi_version: CVI_VERSION,
+        schema_version: SCHEMA_VERSION,
         source_freshness: sourceFreshness,
         status,
         error_summary: errors,
         execution_duration_ms: executionDurationMs,
+        // Clearly-named operational metadata, not a new dataset: marks a
+        // record produced by targeting a past date via ?date=. The values
+        // below still reflect upstream conditions AT RUN TIME, never the
+        // true historical conditions for snapshotDate -- see docs/LV-004.
+        backfilled: isBackfill,
+        // The three CVI component scores that were always computed above
+        // but, before LV-004, were never persisted -- only two of the
+        // formula's five weighted terms (demand_momentum, event_impact_score)
+        // were ever recoverable from a stored document. Without these,
+        // city_velocity_index could not be arithmetically verified from the
+        // archive at all. No formula or weighting changed; these are the
+        // same in-memory values that already existed, now written down.
+        flight_score: flightScore,
+        weather_score: weatherScore,
+        private_jet_index_normalized: privateJetIndex_normalized,
     };
 
     try {
@@ -353,6 +432,7 @@ export async function GET(request) {
         message: 'Snapshot successful',
         date: snapshotDate,
         status,
+        backfilled: isBackfill,
         sourceFreshness,
         data: {
             date: snapshotDate,

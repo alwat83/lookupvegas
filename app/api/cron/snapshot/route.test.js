@@ -4,11 +4,16 @@ const docGet = vi.fn();
 const docSet = vi.fn();
 const collectionGet = vi.fn();
 
+const whereSpy = vi.fn();
+
 vi.mock('../../../../lib/firebaseAdmin', () => ({
   db: {
     collection: () => ({
       doc: () => ({ get: docGet, set: docSet }),
-      orderBy: () => ({ limit: () => ({ get: collectionGet }) }),
+      where: (...args) => {
+        whereSpy(...args);
+        return { orderBy: () => ({ limit: () => ({ get: collectionGet }) }) };
+      },
     }),
   },
 }));
@@ -39,6 +44,7 @@ describe('GET /api/cron/snapshot', () => {
     docGet.mockReset();
     docSet.mockReset();
     collectionGet.mockReset();
+    whereSpy.mockReset();
     docGet.mockResolvedValue({ exists: false });
     collectionGet.mockResolvedValue({ docs: [] });
     docSet.mockResolvedValue(undefined);
@@ -78,6 +84,28 @@ describe('GET /api/cron/snapshot', () => {
     expect(body.status).toBe('success');
     expect(docSet).toHaveBeenCalledTimes(1);
     expect(docSet.mock.calls[0][0]).toMatchObject({ cvi_version: 'v1', status: 'success' });
+  });
+
+  it('persists all five CVI component scores, not just the two that were previously recoverable', async () => {
+    const { GET } = await import('./route.js');
+    await GET(cronRequest('Bearer test-secret'));
+
+    const written = docSet.mock.calls[0][0];
+    for (const field of ['flight_score', 'demand_momentum', 'event_impact_score', 'weather_score', 'private_jet_index_normalized']) {
+      expect(typeof written[field]).toBe('number');
+    }
+    expect(written.schema_version).toBe('v2');
+
+    // The persisted components must actually reproduce the stored CVI --
+    // this is the arithmetic-reproducibility guarantee this ticket exists
+    // to establish, checked here at the source rather than only in the
+    // validation framework's own tests.
+    const recomputed = written.flight_score * 0.35
+      + written.demand_momentum * 0.25
+      + written.event_impact_score * 0.20
+      + written.weather_score * 0.10
+      + written.private_jet_index_normalized * 0.10;
+    expect(Math.abs(recomputed - written.city_velocity_index)).toBeLessThan(0.01);
   });
 
   it('skips recomputation for a date that already completed successfully (duplicate delivery)', async () => {
@@ -220,5 +248,108 @@ describe('GET /api/cron/snapshot', () => {
     // A run that never persisted should not also emit a "complete" event --
     // that would be a false-positive signal to anything watching for it.
     expect(summary).toBeUndefined();
+  });
+
+  describe('backfill (?date= / ?force=)', () => {
+    it('rejects a malformed date parameter', async () => {
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret', 'https://lookupvegas.com/api/cron/snapshot?date=07-28-2026'));
+      expect(res.status).toBe(400);
+      expect(docSet).not.toHaveBeenCalled();
+    });
+
+    it('rejects a calendar date that does not exist', async () => {
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret', 'https://lookupvegas.com/api/cron/snapshot?date=2026-02-30'));
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a future date', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-28T12:00:00Z'));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret', 'https://lookupvegas.com/api/cron/snapshot?date=2026-07-29'));
+      expect(res.status).toBe(400);
+      vi.useRealTimers();
+    });
+
+    it('targets the requested past date, not today, and marks the record backfilled', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-28T12:00:00Z')); // "today" is 2026-07-28
+      const { GET } = await import('./route.js');
+
+      const res = await GET(cronRequest('Bearer test-secret', 'https://lookupvegas.com/api/cron/snapshot?date=2026-07-20'));
+      const body = await res.json();
+
+      expect(body.date).toBe('2026-07-20');
+      expect(body.backfilled).toBe(true);
+      expect(docSet.mock.calls[0][0]).toMatchObject({ date: '2026-07-20', backfilled: true });
+      // The rolling window must be filtered relative to the target date,
+      // not "today" -- otherwise a backfilled historical record would be
+      // computed from days chronologically after it.
+      expect(whereSpy).toHaveBeenCalledWith('date', '<', '2026-07-20');
+
+      vi.useRealTimers();
+    });
+
+    it('marks a same-day (non-backfill) run as backfilled: false', async () => {
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+      expect(docSet.mock.calls[0][0]).toMatchObject({ backfilled: false });
+    });
+
+    it('does not overwrite an existing successful record without force=true, even when a date is explicitly requested', async () => {
+      docGet.mockResolvedValue({ exists: true, data: () => ({ status: 'success' }) });
+      const { GET } = await import('./route.js');
+
+      const res = await GET(cronRequest('Bearer test-secret', 'https://lookupvegas.com/api/cron/snapshot?date=2026-07-20'));
+      const body = await res.json();
+
+      expect(body.status).toBe('already_completed');
+      expect(docSet).not.toHaveBeenCalled();
+    });
+
+    it('overwrites an existing successful record when force=true is explicitly supplied', async () => {
+      docGet.mockResolvedValue({ exists: true, data: () => ({ status: 'success' }) });
+      const { GET } = await import('./route.js');
+
+      const res = await GET(cronRequest('Bearer test-secret', 'https://lookupvegas.com/api/cron/snapshot?date=2026-07-20&force=true'));
+      const body = await res.json();
+
+      expect(body.status).not.toBe('already_completed');
+      expect(docSet).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('hotels silent-fallback detection', () => {
+    it('marks the hotels source as fallback when the endpoint returns 200 with its own internal fallback payload', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation((url) => {
+        if (typeof url === 'string' && url.includes('/api/hotels')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ data: { compressionScore: 88, status: 'High Compression' }, source: 'fallback' }),
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      }));
+
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.status).toBe('partial');
+      expect(body.sourceFreshness.hotels).toBe('fallback');
+      expect(docSet.mock.calls[0][0].error_summary.some(e => e.includes('hotels endpoint returned its internal fallback'))).toBe(true);
+    });
+
+    it('marks the hotels source as ok when it returns a genuine (non-fallback) value', async () => {
+      const { GET } = await import('./route.js'); // mockFetchAllOk() already returns a real-shaped hotels response
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.status).toBe('success');
+      expect(body.sourceFreshness.hotels).toBe('ok');
+    });
   });
 });
