@@ -33,7 +33,11 @@ function mockFetchAllOk() {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
     }
     if (typeof url === 'string' && url.includes('/api/aviation/snapshot')) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({ currentSnapshot: { inboundFlights: 20 } }) });
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [] }),
+      });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
   });
@@ -350,6 +354,129 @@ describe('GET /api/cron/snapshot', () => {
 
       expect(body.status).toBe('success');
       expect(body.sourceFreshness.hotels).toBe('ok');
+    });
+  });
+
+  describe('aviation degradation propagation (LV-005)', () => {
+    function fetchWithAviation(aviationBody) {
+      return vi.fn().mockImplementation((url) => {
+        if (typeof url === 'string' && url.includes('/api/aviation/snapshot')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => aviationBody });
+        }
+        if (typeof url === 'string' && url.includes('/api/hotels')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      });
+    }
+
+    it('records aviation: "ok" for a healthy live response', async () => {
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [],
+      }));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.status).toBe('success');
+      expect(body.sourceFreshness.aviation).toBe('ok');
+    });
+
+    it('records aviation: "ok" for a legitimate live zero -- zero is not itself degraded', async () => {
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 0 }, source: 'live', status: 'success', error_summary: [],
+      }));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.status).toBe('success');
+      expect(body.sourceFreshness.aviation).toBe('ok');
+    });
+
+    it('records aviation: "fallback" and makes the archive status partial when the aviation endpoint reports degraded data', async () => {
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 0 },
+        source: 'fallback',
+        status: 'partial',
+        error_summary: ['ADSB.lol upstream returned HTTP 503'],
+      }));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.status).toBe('partial');
+      expect(body.sourceFreshness.aviation).toBe('fallback');
+    });
+
+    it('adds an aviation-specific entry to error_summary when aviation is degraded', async () => {
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 0 },
+        source: 'fallback',
+        status: 'partial',
+        error_summary: ['ADSB.lol upstream returned HTTP 503'],
+      }));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const errorSummary = docSet.mock.calls[0][0].error_summary;
+      expect(errorSummary.some(e => e.includes('aviation') && e.includes('503'))).toBe(true);
+    });
+
+    it('treats a missing or unrecognized source/status as degraded (fail closed, not fail open)', async () => {
+      vi.stubGlobal('fetch', fetchWithAviation({ currentSnapshot: { inboundFlights: 20 } })); // no source/status at all
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.status).toBe('partial');
+      expect(body.sourceFreshness.aviation).toBe('fallback');
+    });
+
+    it('leaves other sources unaffected when only aviation is degraded', async () => {
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 0 }, source: 'fallback', status: 'partial', error_summary: ['down'],
+      }));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.sourceFreshness.hotels).toBe('ok');
+      expect(body.sourceFreshness.openSky).toBe('ok');
+      expect(body.sourceFreshness.adsb).toBe('ok');
+      expect(body.sourceFreshness.weather).toBe('ok');
+    });
+
+    it('produces identical CVI arithmetic and component values whether aviation is healthy or degraded, given equivalent numeric inputs', async () => {
+      // aviation only ever contributes flight_arrivals_total -- the health
+      // signal must change status/error_summary, never the calculation.
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [],
+      }));
+      const { GET: GET_live } = await import('./route.js');
+      const liveRes = await GET_live(cronRequest('Bearer test-secret'));
+      const liveBody = await liveRes.json();
+      const liveWritten = docSet.mock.calls[0][0];
+
+      docSet.mockClear();
+
+      vi.stubGlobal('fetch', fetchWithAviation({
+        currentSnapshot: { inboundFlights: 20 }, source: 'fallback', status: 'partial', error_summary: ['down'],
+      }));
+      const { GET: GET_degraded } = await import('./route.js');
+      const degradedRes = await GET_degraded(cronRequest('Bearer test-secret'));
+      const degradedBody = await degradedRes.json();
+      const degradedWritten = docSet.mock.calls[0][0];
+
+      // Same inboundFlights input -> identical arithmetic, regardless of
+      // the health signal attached to it.
+      expect(degradedBody.data.velocity).toBe(liveBody.data.velocity);
+      expect(degradedWritten.flight_score).toBe(liveWritten.flight_score);
+      expect(degradedWritten.city_velocity_index).toBe(liveWritten.city_velocity_index);
+      expect(degradedWritten.flight_arrivals_total).toBe(liveWritten.flight_arrivals_total);
+      // Only the health/status labeling differs.
+      expect(liveWritten.status).toBe('success');
+      expect(degradedWritten.status).toBe('partial');
     });
   });
 });

@@ -123,7 +123,31 @@ export async function GET(request) {
             if (avData.currentSnapshot) {
                 totalArrivals = avData.currentSnapshot.inboundFlights * 24;
             }
-            sourceFreshness.aviation = 'ok';
+            // LV-005: the aviation endpoint can return HTTP 200 while
+            // internally degraded (its own upstream failed, or its
+            // response was malformed) -- it now says so explicitly via
+            // source/status rather than a 200 alone standing in for
+            // "the data is real." Anything other than exactly
+            // source: 'live' + status: 'success' is treated as fallback,
+            // including an unrecognized or missing value -- fail closed,
+            // not fail open.
+            if (avData.source === 'live' && avData.status === 'success') {
+                sourceFreshness.aviation = 'ok';
+            } else {
+                sourceFreshness.aviation = 'fallback';
+                const reason = Array.isArray(avData.error_summary) && avData.error_summary.length > 0
+                    ? avData.error_summary.join('; ')
+                    : `aviation endpoint reported source=${avData.source ?? 'unknown'} status=${avData.status ?? 'unknown'}`;
+                errors.push(`aviation snapshot degraded: ${reason}`);
+                logEvent({
+                    severity: 'ERROR',
+                    event: 'snapshot_source_failed',
+                    message: 'Aviation snapshot reported degraded/fallback data.',
+                    snapshotDate,
+                    source: 'aviation',
+                    error: reason,
+                });
+            }
         } else {
             sourceFreshness.aviation = 'fallback';
             errors.push(`aviation snapshot returned ${avRes.status}`);
