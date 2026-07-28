@@ -19,17 +19,6 @@ export const AuthProvider = ({ children }) => {
             if (firebaseUser) {
                 setUser(firebaseUser);
                 try {
-                    // Admin Override for UI
-                    if (firebaseUser.email === 'albertlwatson@gmail.com') {
-                        setUserProfile({
-                            email: firebaseUser.email,
-                            tier: 'Enterprise',
-                            isAdmin: true
-                        });
-                        setLoading(false);
-                        return;
-                    }
-
                     // Fetch or create user profile in Firestore
                     const userDocRef = doc(db, "users", firebaseUser.uid);
                     const userDocSnap = await getDoc(userDocRef);
