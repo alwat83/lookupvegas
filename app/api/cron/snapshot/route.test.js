@@ -48,6 +48,7 @@ describe('GET /api/cron/snapshot', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('fails closed with 503 when CRON_SECRET is not configured, regardless of the header sent', async () => {
@@ -163,5 +164,61 @@ describe('GET /api/cron/snapshot', () => {
     expect(body.date).toBe('2026-06-14');
 
     vi.useRealTimers();
+  });
+
+  it('logs a single structured INFO summary event with severity distinguishable from a partial run', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { GET } = await import('./route.js');
+
+    await GET(cronRequest('Bearer test-secret'));
+
+    const logged = logSpy.mock.calls.map(call => JSON.parse(call[0]));
+    const summary = logged.find(l => l.event === 'snapshot_run_complete');
+    expect(summary).toBeDefined();
+    expect(summary.severity).toBe('INFO');
+    expect(summary.status).toBe('success');
+    expect(typeof summary.duration_ms).toBe('number');
+  });
+
+  it('logs the run-complete summary as WARNING, and each fallback source as its own ERROR event, for a partial run', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url) => {
+      if (typeof url === 'string' && url.includes('adsb.lol')) {
+        return Promise.reject(new Error('network unreachable'));
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }));
+
+    const { GET } = await import('./route.js');
+    await GET(cronRequest('Bearer test-secret'));
+
+    const logged = logSpy.mock.calls.map(call => JSON.parse(call[0]));
+    const summary = logged.find(l => l.event === 'snapshot_run_complete');
+    const sourceFailure = logged.find(l => l.event === 'snapshot_source_failed' && l.source === 'adsb');
+
+    expect(summary.severity).toBe('WARNING');
+    expect(summary.status).toBe('partial');
+    expect(sourceFailure).toBeDefined();
+    expect(sourceFailure.severity).toBe('ERROR');
+    expect(sourceFailure.error).toContain('network unreachable');
+  });
+
+  it('logs a structured ERROR event when the Firestore write itself fails, with no run-complete event', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    docSet.mockRejectedValue(new Error('Firestore unavailable'));
+    const { GET } = await import('./route.js');
+
+    await GET(cronRequest('Bearer test-secret'));
+
+    const logged = logSpy.mock.calls.map(call => JSON.parse(call[0]));
+    const persistFailure = logged.find(l => l.event === 'snapshot_persist_failed');
+    const summary = logged.find(l => l.event === 'snapshot_run_complete');
+
+    expect(persistFailure).toBeDefined();
+    expect(persistFailure.severity).toBe('ERROR');
+    expect(persistFailure.status).toBe('failed');
+    // A run that never persisted should not also emit a "complete" event --
+    // that would be a false-positive signal to anything watching for it.
+    expect(summary).toBeUndefined();
   });
 });

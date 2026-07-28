@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 // functions/index.js requires "resend" at module scope, and its
 // constructor validates that an API key string is present. It is never
@@ -13,6 +13,11 @@ const { runDailySnapshot } = await import('./index.js');
 
 describe('runDailySnapshot', () => {
   const targetUrl = 'https://lookupvegas.com/api/cron/snapshot';
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('throws without calling fetch when the secret is missing', async () => {
     const fetchImpl = vi.fn();
@@ -34,10 +39,10 @@ describe('runDailySnapshot', () => {
 
     const result = await runDailySnapshot('my-secret', targetUrl, fetchImpl);
 
-    expect(fetchImpl).toHaveBeenCalledWith(targetUrl, {
+    expect(fetchImpl).toHaveBeenCalledWith(targetUrl, expect.objectContaining({
       method: 'GET',
       headers: { Authorization: 'Bearer my-secret' },
-    });
+    }));
     expect(result.status).toBe('success');
   });
 
@@ -74,5 +79,56 @@ describe('runDailySnapshot', () => {
   it('propagates a network-level fetch failure as a rejection', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
     await expect(runDailySnapshot('secret', targetUrl, fetchImpl)).rejects.toThrow('ECONNREFUSED');
+  });
+
+  it('treats a request that never resolves as a distinct timeout, not a generic failure', async () => {
+    vi.useFakeTimers();
+    // Mimics real fetch's behavior of rejecting with an AbortError once its
+    // signal fires, rather than resolving or hanging forever.
+    const fetchImpl = vi.fn().mockImplementation((url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const err = new Error('The operation was aborted');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    }));
+
+    const pending = expect(runDailySnapshot('secret', targetUrl, fetchImpl)).rejects.toThrow('timed out');
+    await vi.advanceTimersByTimeAsync(90_000);
+    await pending;
+  });
+
+  it('logs a structured JSON entry with severity and context on a failed run', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: 'failed', date: '2026-07-28' }),
+    });
+
+    await expect(runDailySnapshot('secret', targetUrl, fetchImpl)).rejects.toThrow();
+
+    const logged = logSpy.mock.calls.map(call => JSON.parse(call[0]));
+    const failureLog = logged.find(l => l.event === 'dailySnapshot_invocation_failed');
+    expect(failureLog).toBeDefined();
+    expect(failureLog.severity).toBe('ERROR');
+    expect(failureLog.snapshot_date).toBe('2026-07-28');
+    expect(failureLog.status).toBe('failed');
+  });
+
+  it('logs a structured WARNING (not ERROR) for a partial run', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: 'partial', date: '2026-07-28' }),
+    });
+
+    await runDailySnapshot('secret', targetUrl, fetchImpl);
+
+    const logged = logSpy.mock.calls.map(call => JSON.parse(call[0]));
+    const runLog = logged.find(l => l.event === 'dailySnapshot_run_complete');
+    expect(runLog.severity).toBe('WARNING');
+    expect(runLog.status).toBe('partial');
   });
 });

@@ -2,6 +2,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
+const { logEvent } = require("./structuredLog");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -10,6 +11,13 @@ const db = admin.firestore();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const CRON_SECRET = defineSecret("CRON_SECRET");
+
+// A soft timeout on the HTTP call itself, comfortably under the Cloud
+// Function's own hard timeoutSeconds (120s, set below). This exists so a
+// hanging upstream call produces our own attributable, structured log
+// entry -- rather than the function simply being killed by the platform
+// with no application-level context at all.
+const REQUEST_TIMEOUT_MS = 90_000;
 
 // Invokes the Next.js app's own /api/cron/snapshot route over an
 // authenticated HTTPS call. This deliberately does not reimplement the CVI
@@ -21,36 +29,104 @@ const CRON_SECRET = defineSecret("CRON_SECRET");
 // tested directly (with a mocked fetchImpl) without needing the Firebase
 // emulator or the onSchedule wiring.
 async function runDailySnapshot(secretValue, targetUrl, fetchImpl = fetch) {
+    const startedAt = Date.now();
+
     if (!secretValue) {
-        console.error("dailySnapshot: CRON_SECRET is not available. Refusing to invoke the snapshot endpoint.");
+        logEvent({
+            severity: "ERROR",
+            event: "dailySnapshot_misconfigured",
+            message: "CRON_SECRET is not available. Refusing to invoke the snapshot endpoint.",
+        });
         throw new Error("CRON_SECRET not configured");
     }
     if (!targetUrl) {
-        console.error("dailySnapshot: CRON_TARGET_URL is not configured. Cannot reach the snapshot endpoint.");
+        logEvent({
+            severity: "ERROR",
+            event: "dailySnapshot_misconfigured",
+            message: "CRON_TARGET_URL is not configured. Cannot reach the snapshot endpoint.",
+        });
         throw new Error("CRON_TARGET_URL not configured");
     }
 
-    const res = await fetchImpl(targetUrl, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${secretValue}` },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let res;
+    try {
+        res = await fetchImpl(targetUrl, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${secretValue}` },
+            signal: controller.signal,
+        });
+    } catch (e) {
+        const durationMs = Date.now() - startedAt;
+        if (e.name === "AbortError") {
+            logEvent({
+                severity: "ERROR",
+                event: "dailySnapshot_timeout",
+                message: `Snapshot endpoint did not respond within ${REQUEST_TIMEOUT_MS}ms.`,
+                error: e.message,
+                durationMs,
+            });
+            throw new Error("Snapshot endpoint request timed out");
+        }
+        logEvent({
+            severity: "ERROR",
+            event: "dailySnapshot_invocation_failed",
+            message: "Network failure invoking the snapshot endpoint.",
+            error: e.message,
+            durationMs,
+        });
+        throw e;
+    } finally {
+        clearTimeout(timeout);
+    }
 
     const body = await res.json().catch(() => ({}));
+    const durationMs = Date.now() - startedAt;
 
     if (!res.ok) {
-        console.error(`dailySnapshot: snapshot endpoint returned ${res.status}`, body);
+        logEvent({
+            severity: "ERROR",
+            event: "dailySnapshot_invocation_failed",
+            message: `Snapshot endpoint returned HTTP ${res.status}.`,
+            snapshotDate: body.date ?? null,
+            error: body.error ?? `HTTP ${res.status}`,
+            durationMs,
+        });
         throw new Error(`Snapshot endpoint failed with status ${res.status}`);
     }
 
     if (body.status === "failed") {
-        console.error("dailySnapshot: snapshot endpoint reported a failed run", body);
+        logEvent({
+            severity: "ERROR",
+            event: "dailySnapshot_invocation_failed",
+            message: "Snapshot endpoint reported a failed run.",
+            snapshotDate: body.date ?? null,
+            status: "failed",
+            durationMs,
+        });
         throw new Error("Snapshot run reported a failed status");
     }
 
     if (body.status === "partial") {
-        console.warn(`dailySnapshot: ${body.date} completed with stale/fallback sources`, body.sourceFreshness);
+        logEvent({
+            severity: "WARNING",
+            event: "dailySnapshot_run_complete",
+            message: `Snapshot for ${body.date} completed with stale/fallback sources.`,
+            snapshotDate: body.date ?? null,
+            status: "partial",
+            durationMs,
+        });
     } else {
-        console.log(`dailySnapshot: ${body.date} completed with status ${body.status}`);
+        logEvent({
+            severity: "INFO",
+            event: "dailySnapshot_run_complete",
+            message: `Snapshot for ${body.date} completed with status ${body.status}.`,
+            snapshotDate: body.date ?? null,
+            status: body.status ?? null,
+            durationMs,
+        });
     }
 
     return body;
@@ -73,6 +149,11 @@ exports.dailySnapshot = onSchedule(
         retryCount: 2,
         minBackoffSeconds: 60,
         secrets: [CRON_SECRET],
+        // A hard ceiling above REQUEST_TIMEOUT_MS's 90s soft timeout, so an
+        // unexpected hang still gets caught by our own AbortController and
+        // logged with context, rather than the platform silently killing
+        // the invocation first.
+        timeoutSeconds: 120,
     },
     async () => {
         await runDailySnapshot(CRON_SECRET.value(), process.env.CRON_TARGET_URL);

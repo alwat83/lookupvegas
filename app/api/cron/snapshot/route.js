@@ -1,32 +1,29 @@
 import { db } from '../../../../lib/firebaseAdmin';
+import { logEvent } from '../../../../lib/structuredLog';
+import { businessDateString } from '../../../../lib/businessDate';
 
 const CVI_VERSION = 'v1';
-// Las Vegas observes Pacific time; there is no distinct IANA zone for it,
-// so America/Los_Angeles is the correct, explicit business timezone.
-const BUSINESS_TIMEZONE = 'America/Los_Angeles';
-
-// Formats a Date as the business-day string (YYYY-MM-DD) in the Las Vegas
-// timezone, explicitly -- not the server/UTC date. "Every day at 00:05"
-// with no timezone quietly archives the wrong business date near midnight;
-// this is the one place that decision gets made, deliberately.
-function businessDateString(date = new Date()) {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: BUSINESS_TIMEZONE,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).format(date);
-}
 
 export async function GET(request) {
+    const startedAt = Date.now();
+
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
-        console.error('Cron snapshot misconfigured: CRON_SECRET is not set. Refusing all requests.');
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_misconfigured',
+            message: 'CRON_SECRET is not set. Refusing all requests.',
+        });
         return Response.json({ error: 'Cron is not configured' }, { status: 503 });
     }
 
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${cronSecret}`) {
+        logEvent({
+            severity: 'WARNING',
+            event: 'snapshot_auth_rejected',
+            message: 'Rejected a snapshot invocation with a missing or incorrect Authorization header.',
+        });
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -43,11 +40,28 @@ export async function GET(request) {
     try {
         existingDoc = await docRef.get();
     } catch (e) {
-        console.error('Cron snapshot: failed to check for an existing record', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_idempotency_check_failed',
+            message: 'Failed to check for an existing record before running the snapshot.',
+            snapshotDate,
+            status: 'failed',
+            source: 'firestore',
+            error: e.message,
+            durationMs: Date.now() - startedAt,
+        });
         return Response.json({ error: 'Failed to check snapshot state' }, { status: 500 });
     }
 
     if (existingDoc.exists && existingDoc.data().status === 'success') {
+        logEvent({
+            severity: 'INFO',
+            event: 'snapshot_duplicate_skipped',
+            message: 'Snapshot already completed for this date; skipping recomputation.',
+            snapshotDate,
+            status: 'already_completed',
+            durationMs: Date.now() - startedAt,
+        });
         return Response.json({
             message: 'Snapshot already completed for this date',
             date: snapshotDate,
@@ -78,7 +92,14 @@ export async function GET(request) {
     } catch (e) {
         sourceFreshness.aviation = 'fallback';
         errors.push(`aviation snapshot fetch failed: ${e.message}`);
-        console.error('Cron snapshot: aviation fetch failed', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_source_failed',
+            message: 'Aviation snapshot fetch failed; falling back to default arrivals value.',
+            snapshotDate,
+            source: 'aviation',
+            error: e.message,
+        });
     }
 
     // Fetch OpenSky for yesterday's true volume
@@ -98,7 +119,14 @@ export async function GET(request) {
     } catch (e) {
         sourceFreshness.openSky = 'fallback';
         errors.push(`OpenSky fetch failed: ${e.message}`);
-        console.error('Cron snapshot: OpenSky fetch failed', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_source_failed',
+            message: 'OpenSky fetch failed; falling back to the aviation-derived arrivals estimate.',
+            snapshotDate,
+            source: 'openSky',
+            error: e.message,
+        });
     }
 
     // 2. Fetch Event Impact from /api/hotels
@@ -116,7 +144,14 @@ export async function GET(request) {
     } catch (e) {
         sourceFreshness.hotels = 'fallback';
         errors.push(`hotels fetch failed: ${e.message}`);
-        console.error('Cron snapshot: hotels fetch failed', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_source_failed',
+            message: 'Hotels endpoint fetch failed; falling back to a default event-impact score.',
+            snapshotDate,
+            source: 'hotels',
+            error: e.message,
+        });
     }
 
     // Fetch Private Jet Index (via ADSB)
@@ -145,7 +180,14 @@ export async function GET(request) {
     } catch (e) {
         sourceFreshness.adsb = 'fallback';
         errors.push(`ADSB fetch failed: ${e.message}`);
-        console.error('Cron snapshot: ADSB fetch failed', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_source_failed',
+            message: 'ADSB fetch failed; falling back to a default private-jet index.',
+            snapshotDate,
+            source: 'adsb',
+            error: e.message,
+        });
     }
 
     // 3. Historical Firestore Analysis (flightScore & demandMomentum)
@@ -162,7 +204,13 @@ export async function GET(request) {
         const yesterdayDate = businessDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
         const yesterdayDoc = docs.find(d => d.date === yesterdayDate);
         if (!yesterdayDoc || yesterdayDoc.status === 'failed') {
-            console.error(`Cron snapshot: no successful record found for ${yesterdayDate} (yesterday). The archive may have a gap.`);
+            logEvent({
+                severity: 'ERROR',
+                event: 'snapshot_gap_detected',
+                message: `No successful record found for ${yesterdayDate} (yesterday). The historical archive may have a gap.`,
+                snapshotDate: yesterdayDate,
+                status: yesterdayDoc?.status || 'missing',
+            });
         }
 
         if (docs.length >= 7) {
@@ -190,7 +238,14 @@ export async function GET(request) {
         }
     } catch (e) {
         errors.push(`historical analysis failed: ${e.message}`);
-        console.error('Cron snapshot: historical analysis failed', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_source_failed',
+            message: 'Historical Firestore analysis failed; falling back to baseline flightScore/demandMomentum.',
+            snapshotDate,
+            source: 'firestore',
+            error: e.message,
+        });
     }
 
     // 4. Weather Score
@@ -219,7 +274,14 @@ export async function GET(request) {
     } catch (e) {
         sourceFreshness.weather = 'fallback';
         errors.push(`weather fetch failed: ${e.message}`);
-        console.error('Cron snapshot: weather fetch failed', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_source_failed',
+            message: 'Weather fetch failed; falling back to a zero weather-impact score.',
+            snapshotDate,
+            source: 'weather',
+            error: e.message,
+        });
     }
 
     const weatherPenalty = (weatherImpactScore / 100) * 15;
@@ -236,6 +298,7 @@ export async function GET(request) {
 
     const anyFallback = Object.values(sourceFreshness).some(v => v === 'fallback');
     const status = anyFallback || errors.length > 0 ? 'partial' : 'success';
+    const executionDurationMs = Date.now() - startedAt;
 
     const record = {
         date: snapshotDate,
@@ -250,12 +313,22 @@ export async function GET(request) {
         source_freshness: sourceFreshness,
         status,
         error_summary: errors,
+        execution_duration_ms: executionDurationMs,
     };
 
     try {
         await docRef.set(record, { merge: true });
     } catch (e) {
-        console.error('Cron snapshot: Firestore write failed -- this run did NOT persist a snapshot', e);
+        logEvent({
+            severity: 'ERROR',
+            event: 'snapshot_persist_failed',
+            message: 'Firestore write failed -- this run did NOT persist a snapshot.',
+            snapshotDate,
+            status: 'failed',
+            source: 'firestore',
+            error: e.message,
+            durationMs: executionDurationMs,
+        });
         return Response.json({
             error: 'Failed to persist snapshot',
             date: snapshotDate,
@@ -263,9 +336,18 @@ export async function GET(request) {
         }, { status: 500 });
     }
 
-    if (status === 'partial') {
-        console.warn(`Cron snapshot: ${snapshotDate} completed with stale/fallback sources`, sourceFreshness, errors);
-    }
+    // The single event an operator or an alerting policy should key off of
+    // for "did today's run actually finish, and how" -- distinct from the
+    // per-source diagnostic events above, which explain *why* if this one
+    // isn't a clean 'success'.
+    logEvent({
+        severity: status === 'partial' ? 'WARNING' : 'INFO',
+        event: 'snapshot_run_complete',
+        message: `Snapshot run for ${snapshotDate} completed with status ${status}.`,
+        snapshotDate,
+        status,
+        durationMs: executionDurationMs,
+    });
 
     return Response.json({
         message: 'Snapshot successful',
