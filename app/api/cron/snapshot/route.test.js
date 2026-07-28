@@ -39,6 +39,9 @@ function mockFetchAllOk() {
         json: async () => ({ currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [] }),
       });
     }
+    if (typeof url === 'string' && url.includes('opensky-network.org')) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ([]) }); // a real, valid, empty arrivals array
+    }
     return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
   });
 }
@@ -366,6 +369,9 @@ describe('GET /api/cron/snapshot', () => {
         if (typeof url === 'string' && url.includes('/api/hotels')) {
           return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
         }
+        if (typeof url === 'string' && url.includes('opensky-network.org')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ([]) });
+        }
         return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
       });
     }
@@ -477,6 +483,223 @@ describe('GET /api/cron/snapshot', () => {
       // Only the health/status labeling differs.
       expect(liveWritten.status).toBe('success');
       expect(degradedWritten.status).toBe('partial');
+    });
+  });
+
+  describe('LV-006: legitimate zero preservation', () => {
+    // Mirrors the real flightScore formula so expectations are computed,
+    // not hardcoded magic numbers -- this proves the fix changes *which
+    // number* feeds the formula, not the formula itself.
+    function expectedFlightScore(arrivals, totalArrivals) {
+      const mean = arrivals.reduce((a, b) => a + b, 0) / arrivals.length;
+      const variance = arrivals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arrivals.length;
+      const stddev = Math.sqrt(variance) || 1;
+      const zScore = (totalArrivals - mean) / stddev;
+      return Math.max(0, Math.min(100, 50 + (zScore * 16.67)));
+    }
+
+    function fetchWithFixedArrivals(openSkyArray) {
+      return vi.fn().mockImplementation((url) => {
+        if (typeof url === 'string' && url.includes('/api/aviation/snapshot')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [] }) });
+        }
+        if (typeof url === 'string' && url.includes('/api/hotels')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
+        }
+        if (typeof url === 'string' && url.includes('opensky-network.org')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => openSkyArray });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      });
+    }
+
+    function historicalDoc(date, flightArrivalsTotal) {
+      return { data: () => ({ date, flight_arrivals_total: flightArrivalsTotal }) };
+    }
+
+    it('archived flight_arrivals_total: 0 contributes a real zero to the rolling window, not 450', async () => {
+      const arrivals = [0, 400, 400, 400, 400, 400, 400];
+      collectionGet.mockResolvedValue({ docs: arrivals.map((v, i) => historicalDoc(`2026-07-${20 + i}`, v)) });
+      vi.stubGlobal('fetch', fetchWithFixedArrivals([1, 2, 3, 4, 5])); // totalArrivals = 5
+
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      expect(written.flight_score).toBeCloseTo(expectedFlightScore(arrivals, 5), 5);
+      // If the bug still substituted 450 for the archived 0, the mean/stddev
+      // (and therefore flight_score) would differ measurably from this.
+      const buggyArrivals = [450, 400, 400, 400, 400, 400, 400];
+      expect(written.flight_score).not.toBeCloseTo(expectedFlightScore(buggyArrivals, 5), 2);
+    });
+
+    it('archived flight_arrivals_total: null uses the existing 450 fallback', async () => {
+      const arrivals = [450, 400, 400, 400, 400, 400, 400];
+      collectionGet.mockResolvedValue({
+        docs: [historicalDoc('2026-07-20', null), ...arrivals.slice(1).map((v, i) => historicalDoc(`2026-07-${21 + i}`, v))],
+      });
+      vi.stubGlobal('fetch', fetchWithFixedArrivals([1, 2, 3, 4, 5]));
+
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      expect(docSet.mock.calls[0][0].flight_score).toBeCloseTo(expectedFlightScore(arrivals, 5), 5);
+    });
+
+    it('archived missing flight_arrivals_total field uses the existing 450 fallback', async () => {
+      const positiveArrivals = [400, 400, 400, 400, 400, 400]; // 6 known values
+      const arrivals = [450, ...positiveArrivals]; // expected: missing field treated as 450
+      const docsWithMissingField = [
+        { data: () => ({ date: '2026-07-20' }) }, // field entirely absent -- 7th doc
+        ...positiveArrivals.map((v, i) => historicalDoc(`2026-07-${21 + i}`, v)),
+      ];
+      collectionGet.mockResolvedValue({ docs: docsWithMissingField });
+      vi.stubGlobal('fetch', fetchWithFixedArrivals([1, 2, 3, 4, 5]));
+
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      expect(res.status).toBe(200);
+      expect(docSet.mock.calls[0][0].flight_score).toBeCloseTo(expectedFlightScore(arrivals, 5), 5);
+    });
+
+    it('archived NaN/non-finite flight_arrivals_total uses the existing 450 fallback', async () => {
+      const arrivals = [450, 400, 400, 400, 400, 400, 400];
+      collectionGet.mockResolvedValue({
+        docs: [historicalDoc('2026-07-20', NaN), ...arrivals.slice(1).map((v, i) => historicalDoc(`2026-07-${21 + i}`, v))],
+      });
+      vi.stubGlobal('fetch', fetchWithFixedArrivals([1, 2, 3, 4, 5]));
+
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      expect(docSet.mock.calls[0][0].flight_score).toBeCloseTo(expectedFlightScore(arrivals, 5), 5);
+    });
+
+    it('produces the mathematically expected rolling inputs from mixed zero and positive history', async () => {
+      const arrivals = [0, 0, 300, 500, 450, 600, 0];
+      collectionGet.mockResolvedValue({ docs: arrivals.map((v, i) => historicalDoc(`2026-07-${20 + i}`, v)) });
+      vi.stubGlobal('fetch', fetchWithFixedArrivals([1, 2])); // totalArrivals = 2
+
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      expect(docSet.mock.calls[0][0].flight_score).toBeCloseTo(expectedFlightScore(arrivals, 2), 5);
+    });
+
+    it('regression: identical valid non-zero inputs produce identical flight_arrivals_total, flight_score, demand_momentum, and city_velocity_index -- the fix changes value selection, not calculation', async () => {
+      const arrivals = [380, 410, 395, 420, 440, 405, 415, 430, 400, 390, 425, 435, 402, 418];
+      collectionGet.mockResolvedValue({ docs: arrivals.map((v, i) => historicalDoc(`2026-07-${10 + i}`, v)) });
+      vi.stubGlobal('fetch', fetchWithFixedArrivals([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])); // totalArrivals = 10
+
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+      const written = docSet.mock.calls[0][0];
+
+      expect(written.flight_arrivals_total).toBe(10);
+      expect(written.flight_score).toBeCloseTo(expectedFlightScore(arrivals, 10), 5);
+      expect(body.data.flightScore).toBeCloseTo(expectedFlightScore(arrivals, 10), 5);
+
+      // demand_momentum and city_velocity_index follow directly from the
+      // same unmodified formula given these inputs -- confirmed present
+      // and finite, not recomputed by a different code path.
+      expect(Number.isFinite(written.demand_momentum)).toBe(true);
+      expect(Number.isFinite(written.city_velocity_index)).toBe(true);
+      expect(written.city_velocity_index).toBeCloseTo(
+        written.flight_score * 0.35 + written.demand_momentum * 0.25 + written.event_impact_score * 0.20
+          + written.weather_score * 0.10 + written.private_jet_index_normalized * 0.10,
+        5
+      );
+    });
+  });
+
+  describe('LV-006: OpenSky array validation', () => {
+    function fetchWithOpenSky(openSkyResponse) {
+      return vi.fn().mockImplementation((url) => {
+        if (typeof url === 'string' && url.includes('/api/aviation/snapshot')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [] }) });
+        }
+        if (typeof url === 'string' && url.includes('/api/hotels')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
+        }
+        if (typeof url === 'string' && url.includes('opensky-network.org')) {
+          return openSkyResponse;
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      });
+    }
+
+    it('overrides total arrivals with an explicit zero for a successful, genuinely empty array', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.resolve({ ok: true, status: 200, json: async () => [] })));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.data.arrivals).toBe(0);
+      expect(body.sourceFreshness.openSky).toBe('ok');
+      expect(body.status).toBe('success'); // a valid zero must not itself mark the run partial
+    });
+
+    it('uses the actual length of a successful non-empty array', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.resolve({ ok: true, status: 200, json: async () => [{}, {}, {}] })));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.data.arrivals).toBe(3);
+      expect(body.sourceFreshness.openSky).toBe('ok');
+    });
+
+    it('preserves the prior aviation-derived value on a failed (non-2xx) OpenSky request', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.resolve({ ok: false, status: 503, json: async () => ({}) })));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.data.arrivals).toBe(20 * 24); // aviation-derived value, untouched
+      expect(body.sourceFreshness.openSky).toBe('fallback');
+      expect(body.status).toBe('partial');
+    });
+
+    it('does not silently become zero for a non-array (object) payload', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.resolve({ ok: true, status: 200, json: async () => ({ error: 'rate limited' }) })));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.data.arrivals).toBe(20 * 24); // preserved, not corrupted to 0
+      expect(body.sourceFreshness.openSky).toBe('fallback');
+    });
+
+    it('does not silently become zero when the expected payload is entirely missing (null)', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.resolve({ ok: true, status: 200, json: async () => null })));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.data.arrivals).toBe(20 * 24);
+      expect(body.sourceFreshness.openSky).toBe('fallback');
+    });
+
+    it('marks OpenSky fallback and the run partial for a malformed response', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.resolve({ ok: true, status: 200, json: async () => 'not-an-array-or-object' })));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.sourceFreshness.openSky).toBe('fallback');
+      expect(body.status).toBe('partial');
+      expect(docSet.mock.calls[0][0].error_summary.some(e => e.toLowerCase().includes('opensky'))).toBe(true);
+    });
+
+    it('marks the run partial when OpenSky fails at the network level', async () => {
+      vi.stubGlobal('fetch', fetchWithOpenSky(Promise.reject(new Error('ECONNRESET'))));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(body.sourceFreshness.openSky).toBe('fallback');
+      expect(body.status).toBe('partial');
     });
   });
 });

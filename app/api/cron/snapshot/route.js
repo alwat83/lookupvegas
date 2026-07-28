@@ -1,6 +1,7 @@
 import { db } from '../../../../lib/firebaseAdmin';
 import { logEvent } from '../../../../lib/structuredLog';
 import { businessDateString, previousBusinessDateString, isValidBusinessDateString } from '../../../../lib/businessDate';
+import { selectFiniteNumber } from '../../../../lib/numericSelection';
 
 const CVI_VERSION = 'v1'; // The weighting formula itself -- unchanged by LV-004.
 const SCHEMA_VERSION = 'v2'; // The document *shape* -- bumped because flight_score,
@@ -173,8 +174,26 @@ export async function GET(request) {
         const osRes = await fetch(`https://opensky-network.org/api/flights/arrival?airport=KLAS&begin=${begin}&end=${end}`);
         if (osRes.ok) {
             const osData = await osRes.json();
-            totalArrivals = osData.length || totalArrivals;
-            sourceFreshness.openSky = 'ok';
+            // LV-006: osData.length || totalArrivals treated a genuinely
+            // empty (but valid) OpenSky result identically to a malformed
+            // one -- both silently kept the prior value, and both were
+            // marked 'ok' regardless. A real empty array is a real zero
+            // and must explicitly override; a non-array payload is
+            // malformed and must neither become zero nor be labeled ok.
+            if (Array.isArray(osData)) {
+                totalArrivals = osData.length;
+                sourceFreshness.openSky = 'ok';
+            } else {
+                sourceFreshness.openSky = 'fallback';
+                errors.push('OpenSky response was not a valid array; keeping the prior arrivals estimate');
+                logEvent({
+                    severity: 'ERROR',
+                    event: 'snapshot_source_failed',
+                    message: 'OpenSky response was malformed (not an array); keeping the prior arrivals estimate.',
+                    snapshotDate,
+                    source: 'openSky',
+                });
+            }
         } else {
             sourceFreshness.openSky = 'fallback';
             errors.push(`OpenSky returned ${osRes.status}`);
@@ -301,7 +320,14 @@ export async function GET(request) {
         }
 
         if (docs.length >= 7) {
-            const arrivals = docs.map(d => d.flight_arrivals_total || 450);
+            // LV-006: d.flight_arrivals_total || 450 treated an archived
+            // genuine zero-arrivals day identically to a missing/invalid
+            // field, silently inflating it to 450 and corrupting the
+            // rolling mean/stddev -- and therefore every flightScore and
+            // demandMomentum computed against this window. 0 is now
+            // preserved; only a missing, non-finite, negative, or
+            // wrong-type value falls back to 450.
+            const arrivals = docs.map(d => selectFiniteNumber(d.flight_arrivals_total, 450));
 
             // flightScore Z-score
             const mean = arrivals.reduce((a, b) => a + b, 0) / arrivals.length;
