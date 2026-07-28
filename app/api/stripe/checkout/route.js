@@ -4,31 +4,22 @@ import { db } from '../../../../lib/firebaseAdmin';
 
 export async function POST(req) {
     try {
-        const { userId, email, returnUrl } = await req.json();
+        const { userId, email, successUrl, cancelUrl } = await req.json();
 
         if (!userId || !email) {
             return NextResponse.json({ error: 'User ID and Email are required' }, { status: 400 });
         }
 
         const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+        const priceId = process.env.STRIPE_PRICE_ID_INTELLIGENCE;
 
-        // Mock mode: if Stripe is not configured, simulate a successful upgrade
-        if (!stripeSecretKey || stripeSecretKey === 'mock_key') {
-            console.log('Stripe not configured. Running in MOCK mode.');
-            
-            // Immediately upgrade user in Firestore
-            const userRef = db.collection('users').doc(userId);
-            await userRef.set({
-                tier: 'Intelligence',
-                subscriptionStatus: 'active',
-                stripeCustomerId: 'mock_cus_' + userId
-            }, { merge: true });
-
-            return NextResponse.json({ url: returnUrl + '?mock_success=true' });
+        if (!stripeSecretKey || !priceId) {
+            console.error('Stripe checkout misconfigured: STRIPE_SECRET_KEY or STRIPE_PRICE_ID_INTELLIGENCE is not set.');
+            return NextResponse.json({ error: 'Billing is not configured' }, { status: 503 });
         }
 
-        // Real Stripe integration
         const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
         // 1. Get or create Stripe Customer
         const userDoc = await db.collection('users').doc(userId).get();
@@ -49,16 +40,17 @@ export async function POST(req) {
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: process.env.STRIPE_PRICE_ID_INTELLIGENCE, // Expect this in .env
+                    price: priceId,
                     quantity: 1,
                 },
             ],
             mode: 'subscription',
-            success_url: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: returnUrl,
+            success_url: `${successUrl || `${baseUrl}/intelligence/success`}?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: cancelUrl || `${baseUrl}/intelligence/cancel`,
             metadata: {
                 userId: userId,
-                tier: 'Intelligence'
+                tier: 'Intelligence',
+                priceId: priceId
             }
         });
 

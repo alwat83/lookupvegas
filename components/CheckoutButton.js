@@ -1,23 +1,37 @@
 "use client";
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../app/contexts/AuthContext';
 
 export default function CheckoutButton() {
     const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
+    const router = useRouter();
 
     const handleCheckout = async () => {
+        if (!user) {
+            router.push('/signup?next=/intelligence');
+            return;
+        }
+
         setLoading(true);
         try {
-            const res = await fetch('/api/checkout_sessions', {
+            const res = await fetch('/api/stripe/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    successUrl: `${window.location.origin}/intelligence/success`,
+                    cancelUrl: `${window.location.origin}/intelligence/cancel`
+                })
             });
             const data = await res.json();
             if (data.url) {
                 window.location.href = data.url;
             } else {
                 console.error("Checkout Error:", data.error);
-                alert("Please configure Stripe Environment Variables.");
+                alert("Checkout is temporarily unavailable. Please try again shortly.");
                 setLoading(false);
             }
         } catch (error) {

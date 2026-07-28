@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['**/*.test.js'],
-    exclude: ['node_modules/**', '.next/**', 'functions/node_modules/**'],
+    exclude: ['**/node_modules/**', '.next/**', '.firebase/**'],
   },
 });

@@ -9,10 +9,35 @@ import RoiCalculator from '../../components/RoiCalculator';
 export default function PricingPage() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
+    const [checkoutError, setCheckoutError] = useState('');
 
     const handleSubscribe = async () => {
-        // Without Stripe IDs, just route to signup
-        router.push('/signup');
+        if (!user) {
+            router.push('/signup?next=/pricing');
+            return;
+        }
+
+        setCheckoutError('');
+        try {
+            const res = await fetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    successUrl: `${window.location.origin}/intelligence/success`,
+                    cancelUrl: `${window.location.origin}/intelligence/cancel`
+                })
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                setCheckoutError(data.error || 'Checkout is temporarily unavailable.');
+            }
+        } catch (error) {
+            setCheckoutError('Checkout is temporarily unavailable.');
+        }
     };
 
     return (
@@ -25,6 +50,12 @@ export default function PricingPage() {
                     </p>
                 </div>
             </div>
+
+            {checkoutError && (
+                <div className="container" style={{ marginBottom: '1.5rem' }}>
+                    <p style={{ color: 'var(--accent-warning, #e17a61)', textAlign: 'center' }}>{checkoutError}</p>
+                </div>
+            )}
 
             <div className="container" style={{ marginBottom: '4rem' }}>
                 <RoiCalculator />

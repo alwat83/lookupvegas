@@ -12,13 +12,9 @@ export async function POST(req) {
 
         const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
-        // Mock mode
-        if (!stripeSecretKey || stripeSecretKey === 'mock_key') {
-            console.log('Stripe not configured. MOCK portal.');
-            
-            // Just simulate a downgrade or billing check
-            // For mock, we'll just return the user to the pricing page
-            return NextResponse.json({ url: returnUrl + '?mock_portal=true' });
+        if (!stripeSecretKey) {
+            console.error('Stripe portal misconfigured: STRIPE_SECRET_KEY is not set.');
+            return NextResponse.json({ error: 'Billing is not configured' }, { status: 503 });
         }
 
         const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
