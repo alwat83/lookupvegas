@@ -1,4 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
 
@@ -7,6 +8,76 @@ const db = admin.firestore();
 
 // Ensure RESEND_API_KEY is set in Firebase functions environment variables
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const CRON_SECRET = defineSecret("CRON_SECRET");
+
+// Invokes the Next.js app's own /api/cron/snapshot route over an
+// authenticated HTTPS call. This deliberately does not reimplement the CVI
+// calculation -- that logic lives in exactly one place (the route itself),
+// on the App Hosting side of the deployment. This function's only job is
+// to trigger it, on schedule, and fail loudly if it doesn't succeed.
+//
+// Exported separately from the scheduled trigger below so it can be unit
+// tested directly (with a mocked fetchImpl) without needing the Firebase
+// emulator or the onSchedule wiring.
+async function runDailySnapshot(secretValue, targetUrl, fetchImpl = fetch) {
+    if (!secretValue) {
+        console.error("dailySnapshot: CRON_SECRET is not available. Refusing to invoke the snapshot endpoint.");
+        throw new Error("CRON_SECRET not configured");
+    }
+    if (!targetUrl) {
+        console.error("dailySnapshot: CRON_TARGET_URL is not configured. Cannot reach the snapshot endpoint.");
+        throw new Error("CRON_TARGET_URL not configured");
+    }
+
+    const res = await fetchImpl(targetUrl, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${secretValue}` },
+    });
+
+    const body = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+        console.error(`dailySnapshot: snapshot endpoint returned ${res.status}`, body);
+        throw new Error(`Snapshot endpoint failed with status ${res.status}`);
+    }
+
+    if (body.status === "failed") {
+        console.error("dailySnapshot: snapshot endpoint reported a failed run", body);
+        throw new Error("Snapshot run reported a failed status");
+    }
+
+    if (body.status === "partial") {
+        console.warn(`dailySnapshot: ${body.date} completed with stale/fallback sources`, body.sourceFreshness);
+    } else {
+        console.log(`dailySnapshot: ${body.date} completed with status ${body.status}`);
+    }
+
+    return body;
+}
+
+exports.runDailySnapshot = runDailySnapshot;
+
+// Runs daily at 00:05 in the business's own timezone (Las Vegas observes
+// Pacific time). This is stated explicitly -- onSchedule defaults to UTC
+// when no timeZone is given, which would silently archive the wrong
+// business date every night. retryCount gives Cloud Scheduler two extra
+// attempts on failure; this is safe specifically because the snapshot
+// route itself is idempotent by business date, so a retry after a
+// genuine failure re-attempts cleanly, and a retry after a success would
+// be recognized as already-completed and skipped.
+exports.dailySnapshot = onSchedule(
+    {
+        schedule: "5 0 * * *",
+        timeZone: "America/Los_Angeles",
+        retryCount: 2,
+        minBackoffSeconds: 60,
+        secrets: [CRON_SECRET],
+    },
+    async () => {
+        await runDailySnapshot(CRON_SECRET.value(), process.env.CRON_TARGET_URL);
+    }
+);
 
 exports.weeklyMovementBrief = onSchedule("every monday 08:00", async (event) => {
     console.log("Starting weekly movement brief generation...");
