@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styles from "../Terminal.module.css";
 
 export default function ApiGatewayPage() {
@@ -12,16 +12,14 @@ export default function ApiGatewayPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isRevoking, setIsRevoking] = useState(false);
     const [error, setError] = useState("");
-    const searchParams = useSearchParams();
-    const isUnlocked = searchParams.get("unlocked") === "true";
 
     useEffect(() => {
-        if (!loading && (!user || (userProfile?.tier !== 'Enterprise' && !isUnlocked))) {
+        if (!loading && (!user || userProfile?.tier !== 'Enterprise')) {
             router.push('/terminal');
-        } else if (user && (userProfile?.tier === 'Enterprise' || isUnlocked)) {
+        } else if (user && userProfile?.tier === 'Enterprise') {
             fetchKeys();
         }
-    }, [user, userProfile, loading, router, isUnlocked]);
+    }, [user, userProfile, loading, router]);
 
     const fetchKeys = async () => {
         try {
@@ -91,7 +89,7 @@ export default function ApiGatewayPage() {
         }
     };
 
-    if (loading || !user || (userProfile?.tier !== 'Enterprise' && !isUnlocked)) {
+    if (loading || !user || userProfile?.tier !== 'Enterprise') {
         return <div className={styles.loadingState}>Verifying clearance...</div>;
     }
 

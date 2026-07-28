@@ -8,7 +8,7 @@ export default function SuccessPage() {
                 Thank you for subscribing to the LookupVegas Pro Tier. You now have full access to the Intelligence Dashboard and advanced movement telemetry.
             </p>
             <Link
-                href="/intelligence?unlocked=true"
+                href="/intelligence"
                 style={{
                     padding: '12px 24px',
                     backgroundColor: 'var(--background-secondary)',

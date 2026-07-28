@@ -8,11 +8,9 @@ let mockApiKeys = [];
 
 export async function GET(req) {
     try {
-        const { tier, isPremium, userId, error } = await getUserProfile(req);
+        const { tier, userId, error } = await getUserProfile(req);
 
-        // Allow unlocked bypass for prototype
-        const isUnlocked = req.headers.get('referer')?.includes('unlocked=true');
-        if (error || !userId || (tier !== 'Enterprise' && !isUnlocked)) {
+        if (error || !userId || tier !== 'Enterprise') {
             return Response.json({ error: 'Unauthorized. Enterprise access required.' }, { status: 401 });
         }
 
@@ -34,10 +32,9 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
-        const { tier, isPremium, userId, error } = await getUserProfile(req);
+        const { tier, userId, error } = await getUserProfile(req);
 
-        const isUnlocked = req.headers.get('referer')?.includes('unlocked=true');
-        if (error || !userId || (tier !== 'Enterprise' && !isUnlocked)) {
+        if (error || !userId || tier !== 'Enterprise') {
             return Response.json({ error: 'Unauthorized. Enterprise access required.' }, { status: 401 });
         }
 
@@ -73,10 +70,9 @@ export async function POST(req) {
 
 export async function DELETE(req) {
     try {
-        const { tier, isPremium, userId, error } = await getUserProfile(req);
+        const { tier, userId, error } = await getUserProfile(req);
 
-        const isUnlocked = req.headers.get('referer')?.includes('unlocked=true');
-        if (error || !userId || (tier !== 'Enterprise' && !isUnlocked)) {
+        if (error || !userId || tier !== 'Enterprise') {
             return Response.json({ error: 'Unauthorized. Enterprise access required.' }, { status: 401 });
         }
 
