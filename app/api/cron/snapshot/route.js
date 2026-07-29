@@ -3,10 +3,13 @@ import { logEvent } from '../../../../lib/structuredLog';
 import { businessDateString, previousBusinessDateString, isValidBusinessDateString } from '../../../../lib/businessDate';
 import { selectFiniteNumber } from '../../../../lib/numericSelection';
 import { isPrivateJet } from '../../../../lib/flightUtils';
+import { SCHEMA_VERSION } from '../../../../lib/archiveValidation';
 
 const CVI_VERSION = 'v1'; // The weighting formula itself -- unchanged by LV-004.
-const SCHEMA_VERSION = 'v2'; // The document *shape* -- bumped because flight_score,
-// weather_score, and private_jet_index_normalized are now persisted (see below).
+// SCHEMA_VERSION (the document *shape*) is the single source of truth in
+// lib/archiveValidation.js, not duplicated here -- LV-008 bumped it to 'v3'
+// there specifically so this route and the validator can never disagree
+// about which schema generation a newly-written document belongs to.
 // Tracked separately from CVI_VERSION on purpose: a document's schema can
 // change (new fields recorded) without the underlying calculation changing,
 // and vice versa -- conflating the two would make it impossible to tell
@@ -117,7 +120,11 @@ export async function GET(request) {
 
     // 1. Fetch live metrics
     let totalArrivals = 450; // Fallback
-    let privateJetIndex = 1.0;
+    // LV-008: renamed from privateJetIndex -- this is a baseline-relative
+    // index ((private/total)/0.08), not a literal count, and internal
+    // naming should say so. Purely a variable-clarity rename; the value
+    // and formula are unchanged.
+    let privateJetActivityIndex = 1.0;
     try {
         const avRes = await fetch(`${origin}/api/aviation/snapshot`);
         if (avRes.ok) {
@@ -269,7 +276,7 @@ export async function GET(request) {
             });
             const total = privCount + commCount;
             if (total > 0) {
-                privateJetIndex = (privCount / total) / 0.08;
+                privateJetActivityIndex = (privCount / total) / 0.08;
             }
             logEvent({
                 severity: 'INFO',
@@ -415,7 +422,7 @@ export async function GET(request) {
     const weatherScore = Math.max(0, 100 - (weatherPenalty * 6.67)); // 0 penalty = 100
 
     // 5. Compute CVI
-    const privateJetIndex_normalized = Math.min(100, privateJetIndex * 50);
+    const privateJetIndex_normalized = Math.min(100, privateJetActivityIndex * 50);
 
     const cityVelocityIndex = (flightScore * 0.35)
         + (demandMomentum * 0.25)
@@ -432,7 +439,18 @@ export async function GET(request) {
         flight_arrivals_total: totalArrivals,
         hotel_compression_score: eventImpact,
         city_velocity_index: cityVelocityIndex,
-        private_jet_count: privateJetIndex,
+        // LV-008: private_jet_count never stored a literal count -- it's
+        // this same baseline-relative index, just misleadingly named.
+        // private_jet_activity_index is the canonical, correctly-named
+        // field, dual-written alongside the deprecated alias below so
+        // existing readers of either field keep working unchanged.
+        private_jet_activity_index: privateJetActivityIndex,
+        // Deprecated compatibility alias. This value is an activity
+        // index, not a count. Kept numerically identical to
+        // private_jet_activity_index above; not removed in LV-008 --
+        // see docs/LV-008-private-jet-metric-naming.md for the
+        // deprecation and eventual-removal policy.
+        private_jet_count: privateJetActivityIndex,
         demand_momentum: demandMomentum,
         event_impact_score: eventImpact,
         timestamp: new Date().toISOString(),
@@ -506,6 +524,7 @@ export async function GET(request) {
             flightScore,
             demandMomentum,
             weatherScore,
+            privateJetActivityIndex,
             privateJetIndex_normalized,
         },
     }, { status: 200 });

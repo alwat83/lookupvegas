@@ -15,6 +15,7 @@ import {
     validateRanges,
     validateSourceFreshness,
     verifyCviArithmetic,
+    readPrivateJetActivityIndex,
 } from '../lib/archiveValidation.js';
 
 initializeApp({
@@ -66,6 +67,12 @@ let outlierDocs = 0;
 let staleDocs = 0;
 let mismatchDocs = 0;
 let notVerifiableDocs = 0;
+// LV-008: tracks migration progress from the deprecated private_jet_count
+// to the canonical private_jet_activity_index -- not a failure condition,
+// purely informational. Disagreements are already caught above as schema
+// drift (auditArchive -> validateDocumentSchema), not re-flagged here.
+let canonicalJetFieldDocs = 0;
+let legacyOnlyJetFieldDocs = 0;
 
 for (const doc of docs) {
     const ranges = validateRanges(doc);
@@ -93,6 +100,10 @@ for (const doc of docs) {
         mismatchDocs++;
         console.log(`[CVI MISMATCH] ${doc.id}: stored=${cvi.stored} recomputed=${cvi.recomputed} diff=${cvi.diff}`);
     }
+
+    const jetReading = readPrivateJetActivityIndex(doc);
+    if (jetReading.source === 'canonical') canonicalJetFieldDocs++;
+    else if (jetReading.source === 'legacy') legacyOnlyJetFieldDocs++;
 }
 
 console.log(`\nRange violations: ${rangeIssueDocs} document(s)`);
@@ -100,6 +111,7 @@ console.log(`Outliers flagged (informational, not failures): ${outlierDocs} docu
 console.log(`Documents with a stale/fallback source: ${staleDocs}`);
 console.log(`CVI arithmetic mismatches: ${mismatchDocs} document(s)`);
 console.log(`Documents not verifiable (pre-LV-004 schema, missing component fields): ${notVerifiableDocs} document(s)`);
+console.log(`Private-jet field migration: ${canonicalJetFieldDocs} using private_jet_activity_index, ${legacyOnlyJetFieldDocs} still legacy-only (private_jet_count)`);
 
 console.log(`\n=== Result: ${exitCode === 0 ? 'PASS' : 'FAIL'} ===`);
 process.exit(exitCode);

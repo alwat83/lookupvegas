@@ -52,7 +52,7 @@ A thin boolean wrapper, not a second implementation — `classifyAircraft` remai
 
 ## 5. Effect on Archive Consistency
 
-The cron route no longer computes a private-jet count that could disagree with what the live dashboard would show for the identical aircraft. The descending-aircraft filter, the private/total ratio, the `/0.08` baseline normalization, and the `×50` / `min(100, …)` normalization are **byte-for-byte unchanged** — only which boolean feeds the numerator changed. `lib/flightUtils.js` now also exposes a `total evaluated / private count` structured log line per run (no per-aircraft logging, no raw payloads), giving future audits a direct signal for how much of a given day's `private_jet_count` came from type-based vs. callsign-based evidence.
+The cron route no longer computes a private-jet metric that could disagree with what the live dashboard would show for the identical aircraft. The descending-aircraft filter, the private/total ratio, the `/0.08` baseline normalization, and the `×50` / `min(100, …)` normalization are **byte-for-byte unchanged** — only which boolean feeds the numerator changed. `lib/flightUtils.js` now also exposes a `total evaluated / private count` structured log line per run (no per-aircraft logging, no raw payloads), giving future audits a direct signal for how much of a given day's private-jet metric came from type-based vs. callsign-based evidence. (Note: at the time this document was written, that metric was still persisted as `private_jet_count`; LV-008 subsequently introduced the correctly-named `private_jet_activity_index` as a dual-written canonical field — see `docs/LV-008-private-jet-metric-naming.md`.)
 
 ## 6. Versioning Decision
 
@@ -62,7 +62,7 @@ Per LV-004's established contract, `cvi_version` tracks the **weighting formula*
 
 ## 7. Historical Document Policy
 
-No historical `daily_metrics` documents are migrated, rewritten, or reprocessed. Every existing record's `private_jet_count`/`private_jet_index_normalized` reflects whichever classifier was in effect when it was written — pre-LV-007 records used the cruder heuristic; every record from this point forward uses the unified classifier. This is a forward-only behavior change, consistent with LV-004's and LV-006's policy of never migrating archived data.
+No historical `daily_metrics` documents are migrated, rewritten, or reprocessed. Every existing record's private-jet fields reflect whichever classifier was in effect when it was written — pre-LV-007 records used the cruder heuristic; every record from this point forward uses the unified classifier. This is a forward-only behavior change, consistent with LV-004's and LV-006's policy of never migrating archived data.
 
 ## 8. Remaining Limitations (not addressed by this ticket)
 

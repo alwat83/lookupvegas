@@ -102,7 +102,7 @@ describe('GET /api/cron/snapshot', () => {
     for (const field of ['flight_score', 'demand_momentum', 'event_impact_score', 'weather_score', 'private_jet_index_normalized']) {
       expect(typeof written[field]).toBe('number');
     }
-    expect(written.schema_version).toBe('v2');
+    expect(written.schema_version).toBe('v3'); // LV-008 bumped v2 -> v3 (private_jet_activity_index added)
 
     // The persisted components must actually reproduce the stored CVI --
     // this is the arithmetic-reproducibility guarantee this ticket exists
@@ -841,6 +841,112 @@ describe('GET /api/cron/snapshot', () => {
         + written.event_impact_score * 0.20 + written.weather_score * 0.10 + written.private_jet_index_normalized * 0.10;
       expect(written.city_velocity_index).toBeCloseTo(recomputed, 10);
       expect(written.backfilled).toBe(false); // backfill semantics untouched
+    });
+  });
+
+  describe('LV-008: canonical private-jet activity field', () => {
+    function descendingAircraft(t, flight) {
+      return { alt_baro: 5000, baro_rate: -500, t, flight };
+    }
+
+    function fetchWithAdsbFleet(fleet) {
+      return vi.fn().mockImplementation((url) => {
+        if (typeof url === 'string' && url.includes('adsb.lol')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ ac: fleet }) });
+        }
+        if (typeof url === 'string' && url.includes('/api/hotels')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
+        }
+        if (typeof url === 'string' && url.includes('/api/aviation/snapshot')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [] }) });
+        }
+        if (typeof url === 'string' && url.includes('opensky-network.org')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      });
+    }
+
+    it('persists both the canonical and legacy fields, numerically identical, for a new snapshot', async () => {
+      const fleet = [descendingAircraft('C56X', 'N123AB'), descendingAircraft('B738', 'SWA1234')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      expect(written.private_jet_activity_index).toBeDefined();
+      expect(written.private_jet_count).toBeDefined();
+      expect(written.private_jet_count).toBe(written.private_jet_activity_index);
+    });
+
+    it('leaves private_jet_index_normalized and city_velocity_index unaffected by the dual-write', async () => {
+      const fleet = [descendingAircraft('C56X', 'N123AB')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      const expectedNormalized = Math.min(100, written.private_jet_activity_index * 50);
+      expect(written.private_jet_index_normalized).toBeCloseTo(expectedNormalized, 10);
+      expect(written.city_velocity_index).toBeCloseTo(
+        written.flight_score * 0.35 + written.demand_momentum * 0.25 + written.event_impact_score * 0.20
+          + written.weather_score * 0.10 + written.private_jet_index_normalized * 0.10,
+        10
+      );
+    });
+
+    it('writes a legitimate zero identically to both fields', async () => {
+      // No aircraft classified private at all -- ratio is 0/total = 0.
+      const fleet = [descendingAircraft('B738', 'SWA1234'), descendingAircraft('B763', 'FDX1234')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      expect(written.private_jet_activity_index).toBe(0);
+      expect(written.private_jet_count).toBe(0);
+    });
+
+    it('writes a value greater than 1 unchanged to both fields (the index is not bounded to [0,1])', async () => {
+      // All aircraft private -> ratio = 1/1 = 1.0, /0.08 = 12.5.
+      const fleet = [descendingAircraft('C56X', 'N123AB')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      expect(written.private_jet_activity_index).toBeCloseTo(12.5, 10);
+      expect(written.private_jet_count).toBeCloseTo(12.5, 10);
+    });
+
+    it('bumps schema_version to v3 and includes the canonical field in the JSON response for parity', async () => {
+      const fleet = [descendingAircraft('C56X', 'N123AB')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      const res = await GET(cronRequest('Bearer test-secret'));
+      const body = await res.json();
+
+      expect(docSet.mock.calls[0][0].schema_version).toBe('v3');
+      expect(body.data.privateJetActivityIndex).toBeDefined();
+    });
+
+    describe('regression: classification, ratio, and normalization arithmetic are unchanged', () => {
+      it('produces the identical private_jet_count value as before this ticket for a fixed fleet', async () => {
+        // 1 of 4 descending aircraft private -> (1/4)/0.08 = 3.125.
+        const fleet = [
+          descendingAircraft('C56X', 'N123AB'),
+          descendingAircraft('B738', 'SWA1234'),
+          descendingAircraft('B763', 'FDX1234'),
+          descendingAircraft('C130', ''),
+        ];
+        vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+        const { GET } = await import('./route.js');
+        await GET(cronRequest('Bearer test-secret'));
+
+        const written = docSet.mock.calls[0][0];
+        expect(written.private_jet_count).toBeCloseTo((1 / 4) / 0.08, 10);
+        expect(written.private_jet_activity_index).toBeCloseTo((1 / 4) / 0.08, 10);
+      });
     });
   });
 });
