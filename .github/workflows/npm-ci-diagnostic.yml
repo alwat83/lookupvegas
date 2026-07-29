@@ -1,0 +1,67 @@
+name: npm-ci-diagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.1
+
+      - name: Pin npm to 10.9.8
+        run: npm install -g npm@10.9.8
+
+      - name: Versions
+        run: |
+          echo "node: $(node --version)"
+          echo "npm: $(npm --version)"
+
+      - name: "Test A: npm ci against committed lockfile"
+        id: testA
+        continue-on-error: true
+        run: |
+          rm -rf node_modules
+          npm ci --no-fund --no-audit
+
+      - name: "Test A: npm ls affected packages"
+        continue-on-error: true
+        run: npm ls @emnapi/core @emnapi/runtime @emnapi/wasi-threads picomatch --all
+
+      - name: "Test A result"
+        run: echo "Test A (npm ci on committed lockfile) outcome = ${{ steps.testA.outcome }}"
+
+      - name: "Test B: fresh npm install on Linux"
+        id: testB_install
+        continue-on-error: true
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --no-fund --no-audit
+
+      - name: "Test B: npm ci against Linux-generated lockfile"
+        id: testB_ci
+        continue-on-error: true
+        run: |
+          rm -rf node_modules
+          npm ci --no-fund --no-audit
+
+      - name: "Test B: npm ls affected packages"
+        continue-on-error: true
+        run: npm ls @emnapi/core @emnapi/runtime @emnapi/wasi-threads picomatch --all
+
+      - name: "Test B result"
+        run: |
+          echo "Test B install outcome = ${{ steps.testB_install.outcome }}"
+          echo "Test B ci outcome = ${{ steps.testB_ci.outcome }}"
+
+      - name: Upload Linux-generated package-lock.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-package-lock
+          path: package-lock.json
+          retention-days: 1
