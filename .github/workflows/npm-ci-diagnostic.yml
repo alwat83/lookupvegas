@@ -30,6 +30,10 @@ jobs:
         continue-on-error: true
         run: npm ls @emnapi/core @emnapi/runtime @emnapi/wasi-threads picomatch --all
 
+      - name: Install functions/ dependencies (needed for npm test only)
+        run: npm ci --no-fund --no-audit
+        working-directory: functions
+
       - name: npm test
         run: npm test
 
