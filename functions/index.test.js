@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-// functions/index.js requires "resend" at module scope, and its
-// constructor validates that an API key string is present. It is never
-// otherwise touched by runDailySnapshot, so a syntactically-plausible
-// dummy value is enough to let the module load without needing a real
-// Resend account. (admin.initializeApp() at module scope does not throw
-// without credentials -- it fails lazily, only on an actual Firestore
-// call, which runDailySnapshot never makes either.)
-vi.stubEnv('RESEND_API_KEY', 're_test_dummy_key_for_module_load_only');
-
-const { runDailySnapshot, runWeeklyMovementBrief, weeklyMovementBrief } = await import('./index.js');
+// LV-011: RESEND_API_KEY is now bound only to weeklyMovementBrief via
+// defineSecret + secrets: [...], and the Resend client is constructed
+// lazily inside its handler (createResendClient), not at module scope.
+// The module itself no longer touches RESEND_API_KEY at load time, so no
+// stubbed env var is needed just to import it -- that used to be required
+// only because of the bug this ticket fixes.
+const {
+    runDailySnapshot,
+    runWeeklyMovementBrief,
+    weeklyMovementBrief,
+    dailySnapshot,
+    createResendClient,
+} = await import('./index.js');
 
 describe('runDailySnapshot', () => {
   const targetUrl = 'https://lookupvegas.com/api/cron/snapshot';
@@ -140,6 +143,59 @@ describe('weeklyMovementBrief scheduler configuration (LV-009)', () => {
 
   it('leaves the intended schedule expression unchanged', () => {
     expect(weeklyMovementBrief.__endpoint.scheduleTrigger.schedule).toBe('every monday 08:00');
+  });
+});
+
+describe('RESEND_API_KEY secret binding (LV-011)', () => {
+  it('module loads successfully with no RESEND_API_KEY present at all', () => {
+    // If this file were still constructing a Resend client at module scope,
+    // importing it above (with no RESEND_API_KEY env var stubbed anywhere in
+    // this test file) would already have thrown before this test could run.
+    expect(process.env.RESEND_API_KEY).toBeUndefined();
+    expect(weeklyMovementBrief).toBeDefined();
+    expect(dailySnapshot).toBeDefined();
+  });
+
+  it('binds RESEND_API_KEY only to weeklyMovementBrief, not dailySnapshot', () => {
+    const weeklySecrets = weeklyMovementBrief.__endpoint.secretEnvironmentVariables.map(s => s.key);
+    const dailySecrets = dailySnapshot.__endpoint.secretEnvironmentVariables.map(s => s.key);
+
+    expect(weeklySecrets).toContain('RESEND_API_KEY');
+    expect(dailySecrets).not.toContain('RESEND_API_KEY');
+    // dailySnapshot keeps its own, unrelated CRON_SECRET binding -- unchanged.
+    expect(dailySecrets).toContain('CRON_SECRET');
+  });
+
+  it('createResendClient fails clearly, at call time, when the key is empty (defineSecret\'s unset value)', () => {
+    expect(() => createResendClient('')).toThrow('Missing API key');
+  });
+
+  it('createResendClient succeeds and returns a usable client when a valid key is supplied', () => {
+    const client = createResendClient('re_test_dummy_key');
+    expect(client).toBeInstanceOf(Object);
+    expect(client.emails).toBeDefined();
+  });
+
+  it('the actual client created from a valid injected key is what runWeeklyMovementBrief sends through -- never a real network call', async () => {
+    const resendClient = createResendClient('re_test_dummy_key');
+    // Stub the real client's own send method rather than substituting a
+    // hand-built fake object, so this proves createResendClient's *actual*
+    // output is what reaches runWeeklyMovementBrief, not a look-alike.
+    const sendSpy = vi.spyOn(resendClient.emails, 'send').mockResolvedValue({ id: 'test' });
+
+    const dbClient = {
+      collection: (name) => {
+        if (name === 'daily_metrics') {
+          const chain = { where: () => chain, orderBy: () => chain, limit: () => chain, get: async () => ({ empty: false, forEach: (cb) => cb({ data: () => ({ date: '2026-07-20', city_velocity_index: 60, hotel_compression_score: 50 }) }) }) };
+          return chain;
+        }
+        return { where: (field, op, value) => ({ get: async () => ({ forEach: (cb) => { if (value === 'Intelligence') cb({ data: () => ({ email: 'a@example.com' }) }); } }) }) };
+      },
+    };
+
+    await runWeeklyMovementBrief(dbClient, resendClient, new Date('2026-07-20T15:00:00Z'));
+
+    expect(sendSpy).toHaveBeenCalledTimes(1);
   });
 });
 

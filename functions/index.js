@@ -14,10 +14,12 @@ const BUSINESS_TIMEZONE = "America/Los_Angeles";
 admin.initializeApp();
 const db = admin.firestore();
 
-// Ensure RESEND_API_KEY is set in Firebase functions environment variables
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const CRON_SECRET = defineSecret("CRON_SECRET");
+// Bound only to weeklyMovementBrief (the only function that sends email) --
+// constructing the Resend client at module scope, before this secret is
+// bound to anything, meant it threw on load for every function in this
+// file, including dailySnapshot, which never uses Resend at all.
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 
 // A soft timeout on the HTTP call itself, comfortably under the Cloud
 // Function's own hard timeoutSeconds (120s, set below). This exists so a
@@ -329,12 +331,24 @@ exports.runWeeklyMovementBrief = runWeeklyMovementBrief;
 // unchanged -- only the timezone it's interpreted in is now explicit,
 // which changes the effective UTC execution instant but preserves the
 // intended local day and clock time.
+// Extracted so the lazy-construction/fail-clearly behavior is directly
+// testable without invoking the onSchedule-wrapped handler itself. Resend's
+// own constructor already throws a clear "Missing API key" error on an
+// empty/missing key -- defineSecret(...).value() returns "" (not undefined)
+// when the secret isn't bound, so no separate manual check is needed here.
+function createResendClient(apiKey) {
+    return new Resend(apiKey);
+}
+exports.createResendClient = createResendClient;
+
 exports.weeklyMovementBrief = onSchedule(
     {
         schedule: "every monday 08:00",
         timeZone: BUSINESS_TIMEZONE,
+        secrets: [RESEND_API_KEY],
     },
     async () => {
+        const resend = createResendClient(RESEND_API_KEY.value());
         await runWeeklyMovementBrief(db, resend);
     }
 );
