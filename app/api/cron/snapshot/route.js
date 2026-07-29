@@ -2,6 +2,7 @@ import { db } from '../../../../lib/firebaseAdmin';
 import { logEvent } from '../../../../lib/structuredLog';
 import { businessDateString, previousBusinessDateString, isValidBusinessDateString } from '../../../../lib/businessDate';
 import { selectFiniteNumber } from '../../../../lib/numericSelection';
+import { isPrivateJet } from '../../../../lib/flightUtils';
 
 const CVI_VERSION = 'v1'; // The weighting formula itself -- unchanged by LV-004.
 const SCHEMA_VERSION = 'v2'; // The document *shape* -- bumped because flight_score,
@@ -253,10 +254,16 @@ export async function GET(request) {
             const adsbData = await adsbRes.json();
             let privCount = 0;
             let commCount = 0;
+            // LV-007: classification now goes through the same shared
+            // isPrivateJet() the live aviation dashboard already uses,
+            // instead of a second, cruder, type-blind heuristic that
+            // never looked at aircraft type and never normalized
+            // callsign case. Only the classification decision changed --
+            // the descending-aircraft filter and the ratio math below are
+            // untouched.
             (adsbData.ac || []).forEach(f => {
                 if (f.alt_baro < 20000 && f.baro_rate < -200) {
-                    const callsign = f.flight ? f.flight.trim() : '';
-                    if (callsign.startsWith('N') && callsign.length <= 6) privCount++;
+                    if (isPrivateJet(f.t, f.flight)) privCount++;
                     else commCount++;
                 }
             });
@@ -264,6 +271,13 @@ export async function GET(request) {
             if (total > 0) {
                 privateJetIndex = (privCount / total) / 0.08;
             }
+            logEvent({
+                severity: 'INFO',
+                event: 'snapshot_adsb_classification_summary',
+                message: `Classified ${total} descending aircraft: ${privCount} private, ${commCount} not private.`,
+                snapshotDate,
+                source: 'adsb',
+            });
             sourceFreshness.adsb = 'ok';
         } else {
             sourceFreshness.adsb = 'fallback';

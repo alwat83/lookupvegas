@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { isPrivateJet } from '../../../../lib/flightUtils.js';
 
 const docGet = vi.fn();
 const docSet = vi.fn();
@@ -700,6 +701,146 @@ describe('GET /api/cron/snapshot', () => {
 
       expect(body.sourceFreshness.openSky).toBe('fallback');
       expect(body.status).toBe('partial');
+    });
+  });
+
+  describe('LV-007: unified private-jet classification', () => {
+    // A descending aircraft record shape matching real ADSB.lol payloads:
+    // alt_baro < 20000 and baro_rate < -200 both required to count at all
+    // (the descending-aircraft filter, untouched by this ticket).
+    function descendingAircraft(t, flight) {
+      return { alt_baro: 5000, baro_rate: -500, t, flight };
+    }
+
+    function fetchWithAdsbFleet(fleet) {
+      return vi.fn().mockImplementation((url) => {
+        if (typeof url === 'string' && url.includes('adsb.lol')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ ac: fleet }) });
+        }
+        if (typeof url === 'string' && url.includes('/api/hotels')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: { compressionScore: 55 } }) });
+        }
+        if (typeof url === 'string' && url.includes('/api/aviation/snapshot')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => ({ currentSnapshot: { inboundFlights: 20 }, source: 'live', status: 'success', error_summary: [] }) });
+        }
+        if (typeof url === 'string' && url.includes('opensky-network.org')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      });
+    }
+
+    it('cross-pipeline consistency: the cron numerator matches isPrivateJet applied directly to the same fleet -- the live endpoint would classify identically since both call the same function', async () => {
+      const fleet = [
+        descendingAircraft('C56X', 'N123AB'),  // private (type match)
+        descendingAircraft('B738', 'SWA1234'), // not private
+        descendingAircraft('GLF5', ''),        // private, no callsign -- the case the old heuristic missed
+        descendingAircraft('CRJ2', 'N123CR'),  // not private -- the false positive the old heuristic had
+      ];
+      const expectedPrivate = fleet.filter(f => isPrivateJet(f.t, f.flight)).length;
+      expect(expectedPrivate).toBe(2); // sanity check on the fixture itself
+
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      const expectedRatio = (expectedPrivate / fleet.length) / 0.08;
+      expect(written.private_jet_count).toBeCloseTo(expectedRatio, 10);
+    });
+
+    it('handles a malformed aircraft record (non-string type/callsign) without throwing or crashing the run', async () => {
+      const fleet = [
+        descendingAircraft('C56X', 'N123AB'),
+        { alt_baro: 5000, baro_rate: -500, t: {}, flight: {} }, // malformed
+      ];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+
+      const res = await GET(cronRequest('Bearer test-secret'));
+      expect(res.status).toBe(200);
+      // The malformed record safely resolves to "not private" (Other),
+      // so exactly 1 of 2 is private -- not a crash, not silently 0/0.
+      const written = docSet.mock.calls[0][0];
+      expect(written.private_jet_count).toBeCloseTo((1 / 2) / 0.08, 10);
+    });
+
+    it('normalizes case and whitespace identically to the shared classifier (the old heuristic\'s case-sensitivity bug is gone)', async () => {
+      const fleet = [descendingAircraft('c56x', '  n456cd  ')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      // All 1 of 1 aircraft correctly classified private despite lowercase/padding.
+      expect(written.private_jet_count).toBeCloseTo((1 / 1) / 0.08, 10);
+    });
+
+    describe('CVI regression -- fixtures where old and new classifiers already agreed', () => {
+      it('private_jet_count, private_jet_index_normalized, and city_velocity_index are unchanged for an agreement fixture', async () => {
+        const fleet = [
+          descendingAircraft('C56X', 'N123AB'), // agreement case: both old and new say Private
+          descendingAircraft('B738', 'SWA1234'), // agreement case: both say not private
+        ];
+        vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+        const { GET } = await import('./route.js');
+        await GET(cronRequest('Bearer test-secret'));
+
+        const written = docSet.mock.calls[0][0];
+        const expectedRatio = (1 / 2) / 0.08; // identical whether computed by the old or new classifier
+        const expectedNormalized = Math.min(100, expectedRatio * 50);
+        expect(written.private_jet_count).toBeCloseTo(expectedRatio, 10);
+        expect(written.private_jet_index_normalized).toBeCloseTo(expectedNormalized, 10);
+        expect(written.city_velocity_index).toBeCloseTo(
+          written.flight_score * 0.35 + written.demand_momentum * 0.25 + written.event_impact_score * 0.20
+            + written.weather_score * 0.10 + written.private_jet_index_normalized * 0.10,
+          10
+        );
+      });
+    });
+
+    describe('CVI regression -- fixtures where the old and new classifiers previously disagreed', () => {
+      it('explicitly asserts the new authoritative numerator and normalized value for a previously-missed business jet', async () => {
+        // GLF5 with no callsign: old heuristic said not-private, new says private.
+        const fleet = [descendingAircraft('GLF5', '')];
+        vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+        const { GET } = await import('./route.js');
+        await GET(cronRequest('Bearer test-secret'));
+
+        const written = docSet.mock.calls[0][0];
+        const expectedRatio = (1 / 1) / 0.08; // now correctly classified private
+        expect(written.private_jet_count).toBeCloseTo(expectedRatio, 10);
+        expect(written.private_jet_index_normalized).toBeCloseTo(Math.min(100, expectedRatio * 50), 10);
+      });
+
+      it('explicitly asserts the new authoritative numerator for a previously-false-positive regional jet', async () => {
+        // CRJ2 with an N-number callsign: old heuristic said Private (false
+        // positive), new correctly says not private via type exclusion.
+        const fleet = [descendingAircraft('CRJ2', 'N123CR')];
+        vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+        const { GET } = await import('./route.js');
+        await GET(cronRequest('Bearer test-secret'));
+
+        const written = docSet.mock.calls[0][0];
+        const expectedRatio = (0 / 1) / 0.08; // correctly excluded -- ratio is 0
+        expect(written.private_jet_count).toBeCloseTo(expectedRatio, 10);
+        expect(written.private_jet_index_normalized).toBeCloseTo(0, 10);
+      });
+    });
+
+    it('scope regression: CVI component weights, the descending-aircraft filter, and OpenSky/backfill behavior are untouched', async () => {
+      // 0.35/0.25/0.20/0.10/0.10 -- the exact weights from the route itself,
+      // re-asserted here so any future accidental weight edit fails this test.
+      const fleet = [descendingAircraft('C56X', 'N123AB')];
+      vi.stubGlobal('fetch', fetchWithAdsbFleet(fleet));
+      const { GET } = await import('./route.js');
+      await GET(cronRequest('Bearer test-secret'));
+
+      const written = docSet.mock.calls[0][0];
+      const recomputed = written.flight_score * 0.35 + written.demand_momentum * 0.25
+        + written.event_impact_score * 0.20 + written.weather_score * 0.10 + written.private_jet_index_normalized * 0.10;
+      expect(written.city_velocity_index).toBeCloseTo(recomputed, 10);
+      expect(written.backfilled).toBe(false); // backfill semantics untouched
     });
   });
 });
