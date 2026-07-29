@@ -3,6 +3,13 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
 const { logEvent } = require("./structuredLog");
+const { weeklyBusinessDateRange } = require("./businessDate");
+
+// LV-009: the single authoritative timezone for every Las Vegas business
+// date this file computes -- the daily snapshot pipeline (app/api/cron/
+// snapshot/route.js) already uses this same IANA zone; this constant is
+// what keeps weeklyMovementBrief from silently disagreeing with it.
+const BUSINESS_TIMEZONE = "America/Los_Angeles";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -160,29 +167,63 @@ exports.dailySnapshot = onSchedule(
     }
 );
 
-exports.weeklyMovementBrief = onSchedule("every monday 08:00", async (event) => {
-    console.log("Starting weekly movement brief generation...");
+// Exported separately from the scheduled trigger below, mirroring
+// runDailySnapshot, so it can be unit tested with injected Firestore/Resend
+// clients and a controlled referenceInstant -- deterministic, and
+// independent of both the test machine's local timezone and real wall-clock
+// time. dbClient/resendClient are dependency-injected rather than closing
+// over the module-level db/resend so tests never touch real Firestore.
+async function runWeeklyMovementBrief(dbClient, resendClient, referenceInstant = new Date()) {
+    // LV-009: the reporting window is now an explicit, auditable Las Vegas
+    // business-date range instead of an implicit "last 7 documents,
+    // whatever they are." In the gap-free case this selects the identical
+    // 7 documents as before (the existing week-start convention -- 7
+    // calendar days ending on the day the brief runs -- is preserved, not
+    // changed). If the archive has a gap, this now correctly reflects
+    // fewer than 7 real business days rather than silently reaching back
+    // past a full calendar week to pad the count -- see
+    // docs/LV-009-weekly-brief-timezone.md.
+    const { start, end } = weeklyBusinessDateRange(referenceInstant, BUSINESS_TIMEZONE);
+
+    logEvent({
+        severity: "INFO",
+        event: "weeklyBrief_started",
+        message: `weeklyMovementBrief executing at ${referenceInstant.toISOString()} `
+            + `(${BUSINESS_TIMEZONE} business date ${end}); reporting window ${start} to ${end}, inclusive.`,
+        snapshotDate: end,
+    });
 
     try {
-        // 1. Fetch latest daily metrics for the brief content
-        const metricsSnapshot = await db.collection("daily_metrics")
+        // 1. Fetch daily metrics for the brief content -- date-string range
+        // query against the existing business-date field, not a manufactured
+        // UTC timestamp boundary. limit(7) remains as a defensive cap; the
+        // where() range is what actually defines the window now.
+        const metricsSnapshot = await dbClient.collection("daily_metrics")
+            .where("date", ">=", start)
+            .where("date", "<=", end)
             .orderBy("date", "desc")
             .limit(7)
             .get();
 
         if (metricsSnapshot.empty) {
-            console.log("No daily metrics found to generate report.");
+            logEvent({
+                severity: "INFO",
+                event: "weeklyBrief_no_data",
+                message: `No daily metrics found for ${start} to ${end}; no report generated.`,
+                snapshotDate: end,
+                status: "skipped",
+            });
             return;
         }
 
         const metricsData = [];
         metricsSnapshot.forEach(doc => metricsData.push(doc.data()));
-        
+
         // Calculate average CVI for the week
         const avgCvi = metricsData.reduce((acc, curr) => acc + (parseFloat(curr.city_velocity_index) || 0), 0) / metricsData.length;
 
         // 2. Query all premium users (Intelligence & Enterprise)
-        const usersRef = db.collection("users");
+        const usersRef = dbClient.collection("users");
         const intelligenceUsers = await usersRef.where("tier", "==", "Intelligence").get();
         const enterpriseUsers = await usersRef.where("tier", "==", "Enterprise").get();
 
@@ -191,11 +232,15 @@ exports.weeklyMovementBrief = onSchedule("every monday 08:00", async (event) => 
         enterpriseUsers.forEach(doc => recipients.push(doc.data().email));
 
         if (recipients.length === 0) {
-            console.log("No premium users found.");
+            logEvent({
+                severity: "INFO",
+                event: "weeklyBrief_no_recipients",
+                message: "No premium users found; no report sent.",
+                snapshotDate: end,
+                status: "skipped",
+            });
             return;
         }
-
-        console.log(`Sending brief to ${recipients.length} users.`);
 
         // 3. Construct HTML email
         const htmlContent = `
@@ -240,7 +285,7 @@ exports.weeklyMovementBrief = onSchedule("every monday 08:00", async (event) => 
         const BATCH_SIZE = 50;
         for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
             const batch = recipients.slice(i, i + BATCH_SIZE);
-            await resend.emails.send({
+            await resendClient.emails.send({
                 from: 'intelligence@lookupvegas.com', // MUST verify this domain in Resend
                 to: 'brief@lookupvegas.com', // Placeholder to address
                 bcc: batch,
@@ -249,9 +294,47 @@ exports.weeklyMovementBrief = onSchedule("every monday 08:00", async (event) => 
             });
         }
 
-        console.log("Weekly brief successfully sent.");
+        // Recipient count only -- never the recipient list or report
+        // contents themselves.
+        logEvent({
+            severity: "INFO",
+            event: "weeklyBrief_complete",
+            message: `weeklyMovementBrief completed: ${metricsData.length} document(s) selected for window `
+                + `${start} to ${end}, brief sent to ${recipients.length} recipient(s).`,
+            snapshotDate: end,
+            status: "success",
+        });
 
     } catch (error) {
-        console.error("Error generating weekly brief:", error);
+        logEvent({
+            severity: "ERROR",
+            event: "weeklyBrief_failed",
+            message: `weeklyMovementBrief failed for reporting window ${start} to ${end}.`,
+            snapshotDate: end,
+            status: "failed",
+            error: error.message,
+        });
     }
-});
+}
+
+exports.runWeeklyMovementBrief = runWeeklyMovementBrief;
+
+// LV-009: explicit America/Los_Angeles timezone. Previously this used the
+// plain-string onSchedule form, which -- confirmed against the installed
+// firebase-functions v6.6.0 source -- never sets a timeZone on the deployed
+// endpoint at all; Cloud Scheduler then defaults to UTC. "every monday
+// 08:00" was therefore actually executing at 08:00 UTC (00:00 PST / 01:00
+// PDT), not the evidently-intended Monday-morning Las Vegas business report
+// the schedule string reads as. The schedule expression itself is
+// unchanged -- only the timezone it's interpreted in is now explicit,
+// which changes the effective UTC execution instant but preserves the
+// intended local day and clock time.
+exports.weeklyMovementBrief = onSchedule(
+    {
+        schedule: "every monday 08:00",
+        timeZone: BUSINESS_TIMEZONE,
+    },
+    async () => {
+        await runWeeklyMovementBrief(db, resend);
+    }
+);
