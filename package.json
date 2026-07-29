@@ -9,6 +9,11 @@
     "lint": "eslint",
     "test": "vitest run"
   },
+  "overrides": {
+    "@emnapi/core": "2.0.0-alpha.3",
+    "@emnapi/runtime": "2.0.0-alpha.3",
+    "@emnapi/wasi-threads": "2.0.1"
+  },
   "dependencies": {
     "@deck.gl/core": "^9.3.5",
     "@deck.gl/extensions": "^9.3.5",
