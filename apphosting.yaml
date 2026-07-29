@@ -9,6 +9,8 @@ env:
     secret: OPENSKY_USERNAME
   - variable: OPENSKY_PASSWORD
     secret: OPENSKY_PASSWORD
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
 
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyD3j5hjRexrArKTRlF0n7Rij-74P_cLG4A
