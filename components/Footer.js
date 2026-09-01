@@ -37,6 +37,7 @@ export default function Footer() {
                     <div className={styles.logo}>LookupVegas</div>
                     <p className={styles.copyright}>
                         &copy; {new Date().getFullYear()} LookupVegas Intelligence. All rights reserved.<br/>
+                        A Dose Ninja Inc project.<br/>
                         Proprietary predictive modeling and data telemetry for Las Vegas hospitality.
                     </p>
                 </div>
